@@ -7,7 +7,10 @@ import time
 from types import SimpleNamespace
 import matplotlib.pyplot as plt
 import seaborn as sns
-import faiss
+# import faiss
+
+from sklearn.cluster import KMeans
+
 from sklearn.preprocessing import normalize
 from sklearn.decomposition import PCA
 from sklearn.metrics import auc as compute_area_under_curve
@@ -192,41 +195,47 @@ def cluster_feats(p, q, num_clusters,
     if verbose:
         print(f'seed = {seed}')
     assert norm in ['none', 'l2', 'l1', None]
+    
     data1 = np.vstack([q, p])
+    
     if norm in ['l2', 'l1']:
         data1 = normalize(data1, norm=norm, axis=1)
-    pca = PCA(n_components=None, whiten=whiten, random_state=seed+1)
+
+    pca = PCA(n_components=None, whiten=whiten, random_state=seed + 1)
     if pca_max_data < 0 or pca_max_data >= data1.shape[0]:
         pca.fit(data1)
     elif 0 < pca_max_data < data1.shape[0]:
-        rng = np.random.RandomState(seed+5)
+        rng = np.random.RandomState(seed + 5)
         idxs = rng.choice(data1.shape[0], size=pca_max_data, replace=False)
         pca.fit(data1[idxs])
     else:
         raise ValueError(f'Invalid argument pca_max_data={pca_max_data} with {data1.shape[0]} datapoints')
+
     s = np.cumsum(pca.explained_variance_ratio_)
-    idx = np.argmax(s >= explained_variance)  # last index to consider
+    idx = np.argmax(s >= explained_variance)
     if verbose:
         print(f'performing clustering in lower dimension = {idx}')
-    data1 = pca.transform(data1)[:, :idx+1]
-    # Cluster
+    
+    data1 = pca.transform(data1)[:, :idx + 1]
     data1 = data1.astype(np.float32)
+
     t1 = time.time()
-    kmeans = faiss.Kmeans(data1.shape[1], num_clusters, niter=max_iter,
-                          verbose=verbose, nredo=num_redo, update_index=True,
-                          seed=seed+2)
-    kmeans.train(data1)
-    _, labels = kmeans.index.search(data1, 1)
-    labels = labels.reshape(-1)
+    kmeans = KMeans(n_clusters=num_clusters,
+                    init='k-means++',
+                    n_init=num_redo,
+                    max_iter=max_iter,
+                    random_state=seed + 2,
+                    verbose=verbose)
+    labels = kmeans.fit_predict(data1)
     t2 = time.time()
     if verbose:
-        print('kmeans time:', round(t2-t1, 2), 's')
+        print('kmeans time:', round(t2 - t1, 2), 's')
 
     q_labels = labels[:len(q)]
     p_labels = labels[len(q):]
 
     q_bins = np.histogram(q_labels, bins=num_clusters,
-                           range=[0, num_clusters], density=True)[0]
+                          range=[0, num_clusters], density=True)[0]
     p_bins = np.histogram(p_labels, bins=num_clusters,
                           range=[0, num_clusters], density=True)[0]
     return p_bins / p_bins.sum(), q_bins / q_bins.sum()

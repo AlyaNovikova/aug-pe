@@ -3,14 +3,14 @@ var_type="pubmed_rephrase_tone"
 feat_ext="sentence-t5-base"
 length=448
 temperature=1.0
-num_seed_samples=2000
+num_seed_samples=10
 lookahead_degree=0
 k=6 # number of variations
 L=$((k+1))
 init_L=${L}
 num_samples=$((L*num_seed_samples))
 echo generating $num_samples samples
-epochs=10
+epochs=2
 word_var_scale=0
 select_syn_mode=rank
 model_type=gpt2
@@ -27,7 +27,7 @@ elif [ "$model_type" = "gpt2" ]; then
 else
     batch_size=8
 fi
-result_folder="result/pubmed/${model_type}_${feat_ext}/${num_samples}_n${noise}_L${L}_initL${init_L}_var${lookahead_degree}_${var_type}_${select_syn_mode}_len${length}var${word_var_scale}_t${temperature}"
+result_folder="result/pubmed_mimic/${model_type}_${feat_ext}/${num_samples}_n${noise}_L${L}_initL${init_L}_var${lookahead_degree}_${var_type}_${select_syn_mode}_len${length}var${word_var_scale}_t${temperature}"
 
 
 ### load datacheckpoint 
@@ -47,7 +47,7 @@ echo load data from ${data_checkpoint_args} ${args}
 
 ### run PE
 python main.py ${args} ${data_checkpoint_args} \
---train_data_file "data/pubmed/train.csv" \
+--train_data_file "data/mimic/train.csv" \
 --dataset "pubmed" \
 --api ${api} \
 --noise ${noise} \
