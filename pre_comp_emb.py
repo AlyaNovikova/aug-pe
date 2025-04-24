@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--model_name_or_path", type=str,
                     default="stsb-roberta-base-v2", required=False)
 parser.add_argument("--dataset", type=str, default="yelp",
-                    choices=["yelp", "pubmed", "openreview"],
+                    choices=["yelp", "pubmed", "openreview", "mimic"],
                     required=False)
 
 args = parser.parse_args()
@@ -24,6 +24,7 @@ set_seed(seed=0, n_gpu=1)
 feature_extractor = args.model_name_or_path
 
 data_files = {'pubmed': 'data/pubmed/train.csv',
+              'mimic': 'data/mimic/train.csv',
               'yelp': 'data/yelp/train.csv',
               'openreview': 'data/openreview/iclr23_reviews_train.csv'
               }

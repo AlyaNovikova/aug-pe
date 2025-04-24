@@ -62,6 +62,14 @@ ALL_PUBMED_styles = ["in a professional way", "in a professional tone",  "in a p
                      "in a creative style", "using imagination", "in a storytelling tone",  "in a formal manner", "using a variety of sentence structures"
                      ]
 
+ALL_MIMIC_styles = [
+    "in a professional way", "in a professional tone", "in a professional style", 
+#     "in a concise manner",
+#     "in a creative style", "using imagination", "in a storytelling tone", 
+    "in a formal manner", 
+#     "using a variety of sentence structures"
+]
+
 
 def set_seed(seed, n_gpu=0):
     torch.manual_seed(seed)

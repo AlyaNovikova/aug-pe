@@ -28,7 +28,7 @@ def sample_dataset(data_name, dataset, label_column_name='label1', sample_size=5
                 sample_indices = np.random.choice(
                     indices, size=sample_size, replace=False)
                 np.random.shuffle(sample_indices)
-        elif data_name == "pubmed":
+        elif data_name == "pubmed" or data_name == "mimic":
             indices = list(range(len(training_dataset)))
         else:
             raise ValueError(f'Unknown dataset name {dataset}')
@@ -39,7 +39,7 @@ def sample_dataset(data_name, dataset, label_column_name='label1', sample_size=5
                 indices, size=sample_size, replace=False)
             np.random.shuffle(sample_indices)
     else:
-        if data_name == "pubmed" or data_name == "openreview":  # random sample
+        if data_name == "pubmed" or data_name == "openreview" or data_name == "mimic":  # random sample
             indices = list(range(len(training_dataset)))
             sample_indices = np.random.choice(
                 indices, size=sample_size, replace=False)
@@ -118,7 +118,7 @@ def load_data(dataset="yelp", data_file="data/yelp/train.csv", num_samples=-1, s
             train_data.append(line['text'])
             train_labels.append(prompt)
         return train_data, train_labels, prompt_counter, prompt_idexer
-    elif dataset == "pubmed":
+    elif dataset == "pubmed" or dataset == "mimic":
         prompt_counter = collections.Counter()
         raw_datasets = load_dataset_with_special(data_file, gen)
         original_data = sample_dataset(dataset, raw_datasets, label_column_name='',
@@ -127,7 +127,10 @@ def load_data(dataset="yelp", data_file="data/yelp/train.csv", num_samples=-1, s
         train_data = []
         train_labels = []
         for i, line in enumerate(original_data['train']):
-            prompt = f"pubmed"
+            if dataset == "pubmed":
+                prompt = f"pubmed"
+            else:
+                prompt = f"mimic"
             prompt_counter[prompt] += 1
             if prompt not in prompt_idexer.keys():
                 prompt_idexer[prompt] = [i]

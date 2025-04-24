@@ -5,9 +5,111 @@ import logging
 from .api import API
 import transformers
 import random
-from .utils import set_seed, get_subcategories, ALL_styles, ALL_OPENREVIEW_styles, ALL_PUBMED_styles
+from .utils import set_seed, get_subcategories, ALL_styles, ALL_OPENREVIEW_styles, ALL_PUBMED_styles, ALL_MIMIC_styles
 import re
 import collections
+
+LABELS = [
+    "[[NAME:Medical_personnel]]", "[[NAME:patient]]", "[[NAME:other]]",
+    "[[ADDRESS]]", "[[DATE]]",
+    "[[CONTACT: Telephone]]", "[[CONTACT: Fax]]", "[[CONTACT: Email]]",
+    "[[ID: SocialID]]", "[[ID: MedicalID]]", "[[ID: InsuranceID]]",
+    "[[NUMBER: Account]]", "[[NUMBER: License]]", "[[NUMBER: VehicleID]]", "[[NUMBER: DeviceID]]",
+    "[[URL]]", "[[IPAdress]]",
+    "[[DEMOGRAPHIC: Age]]", "[[DEMOGRAPHIC: CivilStatus]]", "[[DEMOGRAPHIC: Nationality]]", "[[DEMOGRAPHIC: Profession]]",
+    "[[HOSPITAL: Service]]", "[[HOSPITAL: Building]]", "[[HOSPITAL: Room-Bed]]",
+    "[[PersonalRelation]]"
+]
+
+STYLES = [
+    "in a professional way", "in a professional tone", "in a professional style", 
+#     "in a concise manner",
+#     "in a creative style", "using imagination", "in a storytelling tone", 
+    "in a formal manner", 
+#     "using a variety of sentence structures"
+]
+
+DOC_TYPES = [
+    "consultation note", "discharge summary", "progress note", "operative report",
+    "emergency room note", "radiology report", "pathology report", "nursing note",
+    "physician's order", "admission note", "clinical discharge note", "outpatient clinic note"
+]
+
+SPECIALTIES = [
+    "cardiology", "neurology", "oncology", "pediatrics", "orthopedics",
+    "internal medicine", "general surgery", "psychiatry", "endocrinology",
+    "pulmonology", "gastroenterology", "nephrology"
+]
+
+INSTRUCTION_TEMPLATES = [
+        lambda doc, spec, sty, lbl: f"""Generate a synthetic {doc} for a {spec} case {sty}. 
+        Generate it in the exact style of MIMIC dataset.
+        The text should be realistic and resemble actual medical documentation.
+        Include and Replace all PHI/sensitive data with labels from this list in double brackets: {lbl}. 
+        Don't structure it too much. It should be a natural medical live recording.
+        
+        Make sure the text flows naturally and maintains proper medical terminology.""",
+    
+    
+        lambda doc, spec, sty, lbl: f"""Create a synthetic {doc} for a {spec} case {sty}. Generate it in the exact style of MIMIC dataset.
+    The document should be comprehensive.  
+    Include and Replace all PHI/sensitive data with labels from this list in double brackets: {lbl}. 
+    Don't structure it too much. It should be a natural medical live recording.
+    Structure it with these sections:
+    1. Patient Identification (include {random.choice(["[[NAME:patient]]", "[[ID: MedicalID]]", "[[DEMOGRAPHIC: Age]]"])})
+    2. Chief Complaint
+    3. History of Present Illness
+    4. Assessment and Plan
+    5. Any relevant procedures or treatments
+    Maintain medical accuracy while {sty}.""",
+
+        lambda doc, spec, sty, lbl: f"""Write a synthetic {doc} in narrative form {sty} for a {spec} patient. Generate it in the exact style of MIMIC dataset.
+    Don't structure it too much. It should be a natural medical live recording.
+    Include and Replace all PHI/sensitive data with labels from this list in double brackets: {lbl}. 
+    Begin with patient presentation, then describe:
+    - The clinical reasoning process
+    - Diagnostic findings
+    - Therapeutic interventions
+    - Follow-up plans
+    Weave in {random.sample(lbl, min(2, len(lbl)))} organically throughout the text.""",
+
+        lambda doc, spec, sty, lbl: f"""Generate a comprehensive {doc} {sty} showing multidisciplinary care in {spec}.
+    Don't structure it too much. It should be a natural medical live recording.
+    Include and Replace all PHI/sensitive data with labels from this list in double brackets: {lbl}. 
+    Cover:
+    - Primary team assessment
+    - Consultant recommendations
+    - Nursing observations
+    - Therapy inputs
+    Integrate {random.choice(["[[NAME:Medical_personnel]]", "[[HOSPITAL: Service]]"])} naturally in the text.""",
+
+        lambda doc, spec, sty, lbl: f"""Write a detailed synthetic {doc} {sty} focusing on a {spec} procedure.
+    Include and Replace all PHI/sensitive data with labels from this list in double brackets: {lbl}. 
+    Don't structure it too much. It should be a natural medical live recording.
+    Include:
+    - Pre-procedure preparation
+    - Step-by-step technique
+    - Instruments/devices used (reference [[NUMBER: DeviceID]] if applicable)
+    - Post-procedure care
+    Maintain {sty} while being technically precise.""",
+
+]
+
+def generate_prompts(num_prompts: int = 15):
+    prompts = []
+    for _ in range(num_prompts):
+        doc_type = random.choice(DOC_TYPES)
+        specialty = random.choice(SPECIALTIES)
+        style = random.choice(STYLES)
+        selected_labels = random.sample(LABELS, random.randint(3, 6))
+        labels_str = ", ".join(selected_labels)
+        
+        template = random.choice(INSTRUCTION_TEMPLATES)
+        prompt = template(doc_type, specialty, style, labels_str)
+        
+        prompts.append(prompt.strip())
+    
+    return prompts
 
 
 class HFAPI(API):
@@ -82,7 +184,7 @@ class HFAPI(API):
             '--variation_type',
             type=str,
             default='rephrase',
-            choices=["yelp_rephrase_tone", "openreview_rephrase_tone", "pubmed_rephrase_tone",
+            choices=["yelp_rephrase_tone", "openreview_rephrase_tone", "pubmed_rephrase_tone", "mimic_rephrase_tone"
                      ],
             help='Which image feature extractor to use')
         parser.add_argument("--mlm_probability", type=float, default=0.5)
@@ -165,6 +267,9 @@ class HFAPI(API):
 
                 elif "pubmed" in self.variation_type:
                     full_prompt_text = "Using a variety of sentence structures, write an abstract for a medical research paper: "
+                elif "mimic" in self.variation_type:
+                    sample_prompt = generate_prompts(1)[0]
+                    full_prompt_text = sample_prompt
 
             else:
                 full_prompt_text = prompt
@@ -257,6 +362,12 @@ class HFAPI(API):
             selected_style = ALL_PUBMED_styles[random.randrange(
                 len(ALL_PUBMED_styles))]
             prompt = "Please rephrase the following sentences {} as an abstract for medical research paper:\n{} \n".format(
+                selected_style, sequence)
+            
+        elif variation_type == "mimic_rephrase_tone":
+            selected_style = ALL_MIMIC_styles[random.randrange(
+                len(ALL_MIMIC_styles))]
+            prompt = "Please rephrase the following sentences {}:\n{} \n".format(
                 selected_style, sequence)
 
         return prompt

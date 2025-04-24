@@ -174,9 +174,9 @@ def parse_args():
         "--log_online",
         action="store_true"
     )
-    parser.add_argument('--wandb_key',       default='',
+    parser.add_argument('--wandb_key',       default='ac521e5362cd4c188d900ed3b4c917a33f3f658d',
                         type=str,   help='API key for W&B.')
-    parser.add_argument('--project',         default='text-API',       type=str,
+    parser.add_argument('--project',         default='chuv-aug-pe',       type=str,
                         help='Name of the project - relates to W&B project names. In --savename default setting part of the savename.')
 
     args, api_args = parser.parse_known_args()
