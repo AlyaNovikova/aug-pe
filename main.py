@@ -62,6 +62,9 @@ def main():
 
     # Generating initial synthetic samples.
     if args.data_checkpoint_path != '':
+        print()
+        print("111111111111111111111")
+        print()
         logging.info(
             f'Loading data checkpoint from {args.data_checkpoint_path}')
         seed_syn_samples, seed_additional_info, sync_labels_counter, sync_labels_indexer = load_data(
@@ -75,6 +78,9 @@ def main():
             raise ValueError('data_checkpoint_step should be >= 0')
         start_t = args.data_checkpoint_step + 1
     else:
+        print()
+        print("222222222222222222")
+        print()
         logging.info('Generating initial samples')
         private_lens_dict = None
         num_seed_samples = int(

@@ -9,6 +9,15 @@ from .utils import set_seed, get_subcategories, ALL_styles, ALL_OPENREVIEW_style
 import re
 import collections
 
+import os
+import ssl
+import certifi
+
+os.environ["SSL_CERT_FILE"] = certifi.where()
+
+import ollama
+import requests
+
 LABELS = [
     "[[NAME:Medical_personnel]]", "[[NAME:patient]]", "[[NAME:other]]",
     "[[ADDRESS]]", "[[DATE]]",
@@ -151,21 +160,40 @@ class HFAPI(API):
 
         model_name_or_path = self.model_type
 
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
-            model_name_or_path, device_map="auto")
-        self.tokenizer.pad_token = self.tokenizer.eos_token
-        self.tokenizer.padding_side = "left"
+        try:
+            response = requests.get('http://localhost:11434/api/tags')
+            if response.status_code != 200:
+                raise ConnectionError("Ollama server not responding")
+        except Exception as e:
+            print(f"Connection error: {e}")
+            print("Make sure 'ollama serve' is running in another terminal")
+            exit(1)
 
-        if "gpt2" not in self.model_type:
-            # use torch.float16 for large LLMs
-            self.model = transformers.AutoModelForCausalLM.from_pretrained(
-                model_name_or_path, device_map="auto", torch_dtype=torch.float16)
-        else:
-            pad_token_id = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id else self.tokenizer.eos_token_id
-            self.model = transformers.AutoModelForCausalLM.from_pretrained(
-                model_name_or_path, device_map="auto", pad_token_id=pad_token_id)
-            if self.fp16:
-                self.model.half()
+        self.client = ollama.Client(host='http://localhost:11434')
+
+        response = self.client.generate(
+                model=model_name_or_path,
+                prompt="Write a short paragraph about dogs",
+                options={'temperature': 0, 'num_predict': 10} 
+            )
+
+        print('EXAMPLE about dogs:', response['response'])
+
+        # self.tokenizer = transformers.AutoTokenizer.from_pretrained(
+        #     model_name_or_path, device_map="auto")
+        # self.tokenizer.pad_token = self.tokenizer.eos_token
+        # self.tokenizer.padding_side = "left"
+
+        # if "gpt2" not in self.model_type:
+        #     # use torch.float16 for large LLMs
+        #     self.model = transformers.AutoModelForCausalLM.from_pretrained(
+        #         model_name_or_path, device_map="auto", torch_dtype=torch.float16)
+        # else:
+        #     pad_token_id = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id else self.tokenizer.eos_token_id
+        #     self.model = transformers.AutoModelForCausalLM.from_pretrained(
+        #         model_name_or_path, device_map="auto", pad_token_id=pad_token_id)
+        #     if self.fp16:
+        #         self.model.half()
 
         self.random_sampling_batch_size = random_sampling_batch_size
         self.variation_batch_size = variation_batch_size
@@ -228,13 +256,19 @@ class HFAPI(API):
         return parser
 
     def text_random_sampling(self, num_samples, prompt_counter=None, lens_dict=None):
+        print()
+        print()
+        print("!!!!!!!!!!!!", "text_random_sampling hfapi")
+        print()
+        print()
+        print("!!!!!!!!!!!!")
         ratio_generation_training = num_samples / sum(prompt_counter.values())
         all_sequences = []
         ppls_cur = []
         additional_info = []
         sync_labels_counter = collections.Counter()
 
-        self.model.eval()
+        # self.model.eval()
 
         simulate_num = 0
         for prompt in tqdm(prompt_counter):
@@ -271,17 +305,21 @@ class HFAPI(API):
                     sample_prompt = generate_prompts(1)[0]
                     full_prompt_text = sample_prompt
 
+                    print("####")
+                    print(full_prompt_text)
+                    print("####")
+
             else:
                 full_prompt_text = prompt
 
-            prompt_input_ids = self.tokenizer(full_prompt_text)['input_ids']
+            prompt_input_ids = full_prompt_text
+            # prompt_input_ids = self.tokenizer(full_prompt_text)['input_ids']
             before_gen_length = len(full_prompt_text)
 
             if num_seq_to_generate > 0:
                 # condition on the prompt
-                sequences = self._generate_text(prompt_input_ids, num_seq_to_generate,
-                                                max_length=self.length, batch_size=self.random_sampling_batch_size,
-                                                before_gen_length=before_gen_length)
+                sequences = self._generate_text_ollama(full_prompt_text, num_seq_to_generate,
+                                           max_length=self.length)
                 all_sequences += sequences
             all_prefix_prompts += [full_prompt_text] * num_seq_to_generate
             additional_info += [prompt] * num_seq_to_generate
@@ -290,9 +328,32 @@ class HFAPI(API):
         logging.info(f"Total generated sequences: %d", len(all_sequences))
         torch.cuda.empty_cache()
         return all_sequences,  additional_info, sync_labels_counter, all_prefix_prompts
+    
+    def _generate_text_ollama(self, prompt, seq_num, max_length):
+
+        print("GENERATE TEXT OLLAMA", prompt)
+
+        all_data = []
+
+        for _ in range(seq_num):
+            if self.dry_run:
+                generated_text = "s" * max_length
+            else:
+                response = self.client.generate(
+                    model=self.model_type,
+                    prompt=prompt,
+                    options={'temperature': self.temperature, 'num_predict': max_length}
+                )
+                generated_text = response.get("response", "").strip()
+
+            if generated_text:
+                seq = " ".join(generated_text.split())
+                all_data.append(seq)
+
+        return all_data
 
     def _generate_text(self, prompt, seq_num, max_length, batch_size, before_gen_length):
-
+        
         all_data = []
 
         if seq_num < batch_size:
@@ -303,24 +364,30 @@ class HFAPI(API):
             if self.dry_run:
                 generated_sequences = ["s" * max_length] * batch_size
             else:
-                input_ids = torch.tensor(prompt).repeat(
-                    batch_size, 1).to(self.device)
-                with torch.no_grad():
-                    output_sequences = self.model.generate(
-                        input_ids=input_ids,
-                        max_new_tokens=max_length,
-                        temperature=self.temperature,
-                        top_k=self.k,
-                        top_p=self.p,
-                        early_stopping=True,
-                        repetition_penalty=self.repetition_penalty,
-                        do_sample=self.do_sample,
-                        # overgenerate to ensure we have enough non-empty generated sequences
-                        num_return_sequences=num_return_sequences,
-                        no_repeat_ngram_size=2,
-                    )
-                    generated_sequences = self.tokenizer.batch_decode(output_sequences[:, input_ids.shape[1]:], skip_special_tokens=True,
-                                                                      clean_up_tokenization_spaces=True)
+                response = self.client.generate(
+                    model=self.model_type,
+                    prompt=prompt,
+                    options={'temperature': self.temperature, 'num_predict': max_length}
+                )
+                generated_sequences = response['response']                                                
+                # input_ids = torch.tensor(prompt).repeat(
+                #     batch_size, 1).to(self.device)
+                # with torch.no_grad():
+                #     output_sequences = self.model.generate(
+                #         input_ids=input_ids,
+                #         max_new_tokens=max_length,
+                #         temperature=self.temperature,
+                #         top_k=self.k,
+                #         top_p=self.p,
+                #         early_stopping=True,
+                #         repetition_penalty=self.repetition_penalty,
+                #         do_sample=self.do_sample,
+                #         # overgenerate to ensure we have enough non-empty generated sequences
+                #         num_return_sequences=num_return_sequences,
+                #         no_repeat_ngram_size=2,
+                #     )
+                #     generated_sequences = self.tokenizer.batch_decode(output_sequences[:, input_ids.shape[1]:], skip_special_tokens=True,
+                                                                    #   clean_up_tokenization_spaces=True)
             for g in generated_sequences:
                 seq = g
                 seq = " ".join(seq.split())
@@ -333,19 +400,68 @@ class HFAPI(API):
 
     def text_variation(self, sequences, additional_info,
                        num_variations_per_sequence, variation_degree):
-        self.model.eval()
+        # self.model.eval()
         # self.model.to(self.device)
         variations = []
         for idx in tqdm(range(num_variations_per_sequence)):
-            sub_variations, var_labels = self._text_variation(
+            sub_variations, var_labels = self._text_variation_ollama(
                 sequences=sequences,
                 labels=list(additional_info),
                 variation_degree=variation_degree,
                 variation_type=self.variation_type,
                 batch_size=self.variation_batch_size)
             variations.append(sub_variations)
-        torch.cuda.empty_cache()
         return np.stack(variations, axis=1), var_labels, [], [], []
+    
+    def _text_variation_ollama(self, sequences, labels, variation_degree, variation_type, batch_size):
+        if self.dry_run:
+            all_data = [seq + "s" * self.length for seq in sequences]
+            all_labels = [lab for lab in labels]
+            return all_data, all_labels
+
+        num_seq = len(sequences)
+        all_data = []
+        all_labels = []
+
+        self.mlm_probability = variation_degree
+
+        for i in tqdm(range(num_seq // batch_size + 1)):
+            start_idx = i * batch_size
+            if start_idx >= num_seq:
+                break
+            end_idx = min((i + 1) * batch_size, num_seq)
+
+            for idx in range(start_idx, end_idx):
+                # print("TEXT VARIATION OLLAMA SEQUENCES" , sequences[idx])
+
+                prompt = self._rephrase(
+                    labels[idx], sequences[idx], variation_type)
+                
+                # print("TEXT VARIATION OLLAMA PROMPT", prompt)
+
+                if self.dry_run:
+                    generated_text = prompt + "s" * self.length
+                else:
+                    response = self.client.generate(
+                        model=self.model_type,
+                        prompt=prompt,
+                        options={'temperature': self.temperature, 'num_predict': self.length}
+                    )
+                    generated_text = response.get("response", "").strip()
+
+                seq = " ".join(generated_text.split())
+                lab = labels[idx].strip().split("\t")
+
+                if seq:
+                    all_data.append(seq)
+                else:
+                    all_data.append(prompt)
+
+                all_labels.append(lab)
+
+        logging.info(f"_text_variation_ollama output lens: {len(all_data)}")
+
+        return all_data, all_labels
 
     def _rephrase(self, label, sequence, variation_type):
 
@@ -382,7 +498,7 @@ class HFAPI(API):
         all_data = []
         all_labels = []
 
-        self.model.eval()
+        # self.model.eval()
 
         self.mlm_probability = variation_degree
 
@@ -402,22 +518,29 @@ class HFAPI(API):
                 batch_labels.append(labels[idx])
 
             with torch.no_grad():
-                input_ids = self.tokenizer(batch_prompt, padding=True, return_tensors='pt')[
-                    'input_ids'].to(self.device)  # has been padded into the same lens; cannot be used
-                beam_output = self.model.generate(input_ids,
-                                                  max_new_tokens=self.length,
-                                                  temperature=self.temperature,
-                                                  top_k=self.k,
-                                                  top_p=self.p,
-                                                  early_stopping=True,
-                                                  repetition_penalty=self.repetition_penalty,
-                                                  do_sample=self.do_sample,
-                                                  num_return_sequences=1,
-                                                  no_repeat_ngram_size=2,
-                                                  )
+                input_ids = batch_prompt
+                response = self.client.generate(
+                    model=self.model_type,
+                    prompt=input_ids,
+                    options={'temperature': self.temperature, 'num_predict': self.length}
+                )
+                generated_sequences = response['response']  
+                # self.tokenizer(batch_prompt, padding=True, return_tensors='pt')[
+                #     'input_ids'].to(self.device)  # has been padded into the same lens; cannot be used
+                # beam_output = self.model.generate(input_ids,
+                #                                   max_new_tokens=self.length,
+                #                                   temperature=self.temperature,
+                #                                   top_k=self.k,
+                #                                   top_p=self.p,
+                #                                   early_stopping=True,
+                #                                   repetition_penalty=self.repetition_penalty,
+                #                                   do_sample=self.do_sample,
+                #                                   num_return_sequences=1,
+                #                                   no_repeat_ngram_size=2,
+                #                                   )
                 # TODO:   skip the tokens so the lens of input_ids is diff from batch_prompt
-                generated_sequences = self.tokenizer.batch_decode(
-                    beam_output[:, input_ids.shape[1]:], skip_special_tokens=True,  clean_up_tokenization_spaces=True)
+                # generated_sequences = self.tokenizer.batch_decode(
+                #     beam_output[:, input_ids.shape[1]:], skip_special_tokens=True,  clean_up_tokenization_spaces=True)
             for idx in range(len(generated_sequences)):
                 seq = generated_sequences[idx]
                 seq = " ".join(seq.split())

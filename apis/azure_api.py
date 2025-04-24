@@ -9,7 +9,7 @@ import copy
 import openai
 import re
 import collections
-from .utils import set_seed, get_subcategories, ALL_styles, ALL_OPENREVIEW_styles, ALL_PUBMED_styles, PROMPTS_templates, PUBMED_INIT_templates
+from .utils import set_seed, get_subcategories, ALL_styles, ALL_OPENREVIEW_styles, ALL_PUBMED_styles, ALL_MIMIC_styles, PROMPTS_templates, PUBMED_INIT_templates
 from .openai_chat import openai_completions
 
 
@@ -59,7 +59,7 @@ class AzureAPI(API):
 
         self.num_procs = num_procs
         self.use_subcategory = use_subcategory
-        available_datasets = ['yelp', 'openreview', 'pubmed']
+        available_datasets = ['yelp', 'openreview', 'pubmed', 'mimic']
 
         self.variation_type = variation_type
         self.init_template = None
@@ -155,6 +155,13 @@ class AzureAPI(API):
         return parser
 
     def text_random_sampling(self, num_samples, prompt_counter=None, lens_dict=None):
+
+        print()
+        print()
+        print("!!!!!!!!!!!!!", text_random_sampling)
+        print()
+        print()
+
         ratio_generation_training = num_samples / sum(prompt_counter.values())
         syn_samples = []
         additional_info = []
@@ -210,6 +217,14 @@ class AzureAPI(API):
                         len(self.subcategory_dict['pubmed']))
                     keyword = self.subcategory_dict['pubmed'][rand_keyword_idx]
                     prefix = f"Suppose that you are a {keyword}. " + prefix
+                elif "mimic" in self.variation_type:
+                    prefix = MIMIC_MEDICAL_NOTES_INIT_templates[random.randrange(
+                        len(MIMIC_MEDICAL_NOTES_INIT_templates))]  # random select one template
+                    rand_keyword_idx = random.randrange(
+                        len(self.subcategory_dict['mimic']))
+                    keyword = self.subcategory_dict['mimic'][rand_keyword_idx]
+                    prefix = f"Suppose that you are a {keyword}. " + prefix
+                
             else:
                 prefix = prompt
             all_prompts.append(
@@ -276,7 +291,13 @@ class AzureAPI(API):
             instruction = f"You are required to fill in the blanks with more details for the input medical abstract {selected_style}. If there is no blanks, please output the original medical abstract.\n"
             prompt = instruction + \
                 f"Please fill in the blanks in the following sentences to write an abstract of a medical research paper: \"{masked_seq}\" and your answer MUST be exactly {target_word} words.\n"
-
+        elif "mimic" in variation_type:
+            selected_style = ALL_MIMIC_styles[random.randrange(
+                            len(ALL_MIMIC_styles))]
+            instruction = f"You are required to fill in the blanks with more details for the input medical note {selected_style}. If there is no blanks, please output the original.\n"
+            prompt = instruction + \
+                f"Please fill in the blanks in the following sentences to write a medical note: \"{masked_seq}\" and your answer MUST be exactly {target_word} words.\n"
+        
         elif "openreview_blank_fill_1_shot_word" in variation_type:
             selected_style = ALL_OPENREVIEW_styles[random.randrange(
                 len(ALL_OPENREVIEW_styles))]

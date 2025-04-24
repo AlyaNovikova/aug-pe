@@ -13,7 +13,7 @@ echo generating $num_samples samples
 epochs=10
 word_var_scale=0
 select_syn_mode=rank
-model_type=gpt2
+model_type="deepseek-v2:16b"
 noise=0
 args=""
 api="HFGPT"
