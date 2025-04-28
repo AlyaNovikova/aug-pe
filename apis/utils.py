@@ -38,6 +38,18 @@ PROMPTS_templates = {
 
 }
 
+
+MIMIC_MEDICAL_NOTES_INIT_templates = [
+    "Please share an example of a patient discharge summary:",
+    "Please provide a sample of a medical discharge note:",
+    "Please generate a nurse's note for a hospital shift:",
+    "Please write an example of a clinical progress note:",
+    "Please share an example of a SOAP note from a medical chart:",
+    "Please write a sample patient admission note:",
+    "Please provide an example of an emergency department discharge summary:",
+    "Please write a typical nurse’s end-of-shift report:",
+]
+
 PUBMED_INIT_templates = [
     "Please share an abstract for a medical research paper:",
     "Please provide an example of an abstract for a medical research paper:",

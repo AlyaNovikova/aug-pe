@@ -39,10 +39,11 @@ STYLES = [
 ]
 
 DOC_TYPES = [
-    "consultation note", "discharge summary", "progress note", "operative report",
-    "emergency room note", "radiology report", "pathology report", "nursing note",
-    "physician's order", "admission note", "clinical discharge note", "outpatient clinic note"
-]
+    "discharge summary", "radiology report",
+    # "consultation note", "progress note", "operative report",
+    # "emergency room note", "pathology report", "nursing note",
+    # "physician's order", "admission note", "clinical discharge note", "outpatient clinic note"
+    ]
 
 SPECIALTIES = [
     "cardiology", "neurology", "oncology", "pediatrics", "orthopedics",
