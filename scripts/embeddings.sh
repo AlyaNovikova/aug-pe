@@ -15,6 +15,7 @@ case $1 in
     python pre_comp_emb.py --dataset pubmed --model_name_or_path 'sentence-t5-base'
     ;;
   --mimic)
+    # export CUDA_VISIBLE_DEVICES=0
     python pre_comp_emb.py --dataset mimic --model_name_or_path 'sentence-t5-base'
     ;;
   --yelp)
