@@ -1,12 +1,12 @@
 
 feat_ext="sentence-t5-base"
-epochs=2
+epochs=10
 result_folder="result/mimic/gpt2_sentence-t5-base/70_n0_L7_initL7_var0_mimic_rephrase_tone_rank_len448var0_t1.0"
 min_token_threshold=50
 
 
 python metric.py \
-    --private_data_size 5000 \
+    --private_data_size 100 \
     --synthetic_folder ${result_folder} \
     --run 5  \
     --min_token_threshold ${min_token_threshold} \

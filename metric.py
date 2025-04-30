@@ -92,7 +92,7 @@ def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_si
                     synthetic_data.append(d)
             except:
                 continue
-    elif dataset == "openreview" or dataset == "pubmed":
+    elif dataset == "openreview" or dataset == "pubmed" or dataset == "mimic":
         for index, d in enumerate(syn_data['train']['text']):
             len_d = num_tokens_from_string(d, encoding)
             if len_d > min_token_threshold:
@@ -204,7 +204,7 @@ def main():
     parser.add_argument("--k", type=int, required=False, default=3)
     parser.add_argument("--run", type=int, required=False, default=1)
     parser.add_argument("--dataset", type=str, default="yelp",
-                        choices=["yelp", "pubmed", "openreview"],
+                        choices=["yelp", "pubmed", "openreview", "mimic"],
                         required=False)
 
     args = parser.parse_args()
@@ -216,6 +216,7 @@ def main():
         "yelp": f"result/embeddings/{args.model_name_or_path}/yelp_train_all.embeddings.npz",
         "pubmed": f"result/embeddings/{args.model_name_or_path}/pubmed_train_all.embeddings.npz",
         "openreview": f"result/embeddings/{args.model_name_or_path}/openreview_train_all.embeddings.npz",
+        "mimic": f"result/embeddings/{args.model_name_or_path}/mimic_train_all.embeddings.npz",
     }
     args.train_data_embeddings_file = dataset2embedding_file[args.dataset]
 

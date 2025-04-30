@@ -263,12 +263,7 @@ class HFAPI(API):
         return parser
 
     def text_random_sampling(self, num_samples, prompt_counter=None, lens_dict=None):
-        print()
-        print()
-        print("!!!!!!!!!!!!", "text_random_sampling hfapi")
-        print()
-        print()
-        print("!!!!!!!!!!!!")
+        print("\n\n!!!!!!!!!!!!", "text_random_sampling hfapi", "\n\n!!!!!!!!!!!!")
         ratio_generation_training = num_samples / sum(prompt_counter.values())
         all_sequences = []
         ppls_cur = []
@@ -288,10 +283,12 @@ class HFAPI(API):
         logging.info(
             f"should -- simulated generated sequences: %d", simulate_num)
         all_prefix_prompts = []
+        
         for prompt in tqdm(prompt_counter):
             # generation is proportional to the label distributions
             num_seq_to_generate = round(
                 prompt_counter[prompt] * ratio_generation_training)
+            
             if self.use_subcategory:
                 if "yelp" in self.variation_type:
                     category_label = prompt.split(
@@ -309,13 +306,47 @@ class HFAPI(API):
 
                 elif "pubmed" in self.variation_type:
                     full_prompt_text = "Using a variety of sentence structures, write an abstract for a medical research paper: "
+                    
                 elif "mimic" in self.variation_type:
-                    sample_prompt = generate_prompts(1)[0]
-                    full_prompt_text = sample_prompt
+                    # Generate multiple different prompts for MIMIC
+                    # num_prompts_to_generate = max(1, min(num_seq_to_generate, 10))
+                    num_prompts_to_generate = num_seq_to_generate
+                    generated_prompts = generate_prompts(num_prompts_to_generate)
+                    
+                    sequences_per_prompt = max(1, num_seq_to_generate // num_prompts_to_generate)
+                    remaining_sequences = num_seq_to_generate % num_prompts_to_generate
+                    
+                    for i, sample_prompt in enumerate(generated_prompts):
+                        full_prompt_text = sample_prompt
+                        current_sequences = sequences_per_prompt + (1 if i < remaining_sequences else 0)
+                        
+                        print("####")
+                        print(full_prompt_text)
+                        print(f"Generating {current_sequences} sequences for this prompt")
+                        print("####")
 
-                    print("####")
-                    print(full_prompt_text)
-                    print("####")
+                        if not self.use_ollama:
+                            prompt_input_ids = self.tokenizer(full_prompt_text)['input_ids']
+                            before_gen_length = len(full_prompt_text)
+                        else:
+                            prompt_input_ids = full_prompt_text
+                            before_gen_length = len(full_prompt_text)
+
+                        if current_sequences > 0:
+                            if self.use_ollama:
+                                sequences = self._generate_text_ollama(full_prompt_text, current_sequences,
+                                                        max_length=self.length)
+                            else:
+                                sequences = self._generate_text(prompt_input_ids, current_sequences,
+                                                            max_length=self.length, batch_size=self.random_sampling_batch_size,
+                                                            before_gen_length=before_gen_length)
+                                
+                            all_sequences += sequences
+                        all_prefix_prompts += [full_prompt_text] * current_sequences
+                        additional_info += [prompt] * current_sequences
+                        sync_labels_counter[prompt] += current_sequences
+                        
+                    continue
 
             else:
                 full_prompt_text = prompt
@@ -325,14 +356,13 @@ class HFAPI(API):
                 before_gen_length = len(full_prompt_text)
             else:
                 prompt_input_ids = full_prompt_text
-                # prompt_input_ids = self.tokenizer(full_prompt_text)['input_ids']
                 before_gen_length = len(full_prompt_text)
 
             if num_seq_to_generate > 0:
                 # condition on the prompt
                 if self.use_ollama:
                     sequences = self._generate_text_ollama(full_prompt_text, num_seq_to_generate,
-                                            max_length=self.length)
+                                        max_length=self.length)
                 else:
                     sequences = self._generate_text(prompt_input_ids, num_seq_to_generate,
                                                 max_length=self.length, batch_size=self.random_sampling_batch_size,
@@ -345,7 +375,7 @@ class HFAPI(API):
 
         logging.info(f"Total generated sequences: %d", len(all_sequences))
         torch.cuda.empty_cache()
-        return all_sequences,  additional_info, sync_labels_counter, all_prefix_prompts
+        return all_sequences, additional_info, sync_labels_counter, all_prefix_prompts
     
     def _generate_text_ollama(self, prompt, seq_num, max_length):
 
@@ -371,7 +401,6 @@ class HFAPI(API):
         return all_data
 
     def _generate_text(self, prompt, seq_num, max_length, batch_size, before_gen_length):
-
         all_data = []
 
         if seq_num < batch_size:
@@ -399,7 +428,7 @@ class HFAPI(API):
                         no_repeat_ngram_size=2,
                     )
                     generated_sequences = self.tokenizer.batch_decode(output_sequences[:, input_ids.shape[1]:], skip_special_tokens=True,
-                                                                      clean_up_tokenization_spaces=True)
+                                                                    clean_up_tokenization_spaces=True)
             for g in generated_sequences:
                 seq = g
                 seq = " ".join(seq.split())

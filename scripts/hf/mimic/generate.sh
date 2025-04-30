@@ -13,7 +13,9 @@ echo generating $num_samples samples
 epochs=10
 word_var_scale=0
 select_syn_mode=rank
-model_type="deepseek-v2:16b"
+random_str="_01"
+# model_type="deepseek-v2:16b"
+model_type="gpt2"
 noise=0
 args=""
 api="HFGPT"
@@ -27,7 +29,7 @@ elif [ "$model_type" = "gpt2" ]; then
 else
     batch_size=8
 fi
-result_folder="result/mimic/${model_type}_${feat_ext}/${num_samples}_n${noise}_L${L}_initL${init_L}_var${lookahead_degree}_${var_type}_${select_syn_mode}_len${length}var${word_var_scale}_t${temperature}"
+result_folder="result/mimic/${model_type}_${feat_ext}/${num_samples}_n${noise}_L${L}_initL${init_L}_var${lookahead_degree}_${var_type}_${select_syn_mode}_len${length}var${word_var_scale}_t${temperature}_${random_str}"
 
 
 ### load datacheckpoint 
@@ -72,5 +74,5 @@ python main.py ${args} ${data_checkpoint_args} \
 --variation_type ${var_type} \
 --result_folder ${result_folder} \
 --log_online \
---train_data_embeddings_file "result/embeddings/${feat_ext}/mimic_train_all.embeddings.npz" 
+# --train_data_embeddings_file "result/embeddings/${feat_ext}/mimic_train_all.embeddings.npz" 
 
