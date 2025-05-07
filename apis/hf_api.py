@@ -5,7 +5,8 @@ import logging
 from .api import API
 import transformers
 import random
-from .utils import set_seed, get_subcategories, ALL_styles, ALL_OPENREVIEW_styles, ALL_PUBMED_styles, ALL_MIMIC_styles
+from .utils import set_seed, get_subcategories, ALL_styles, ALL_OPENREVIEW_styles, ALL_PUBMED_styles, DISCHARGE_LETTER_STYLES, DISCHARGE_REWRITE_PROMPTS
+from .prompts import INSTRUCTION_TEMPLATES, SPECIALTIES, DOC_TYPES, STYLES, LABELS
 import re
 import collections
 
@@ -15,95 +16,8 @@ import certifi
 
 os.environ["SSL_CERT_FILE"] = certifi.where()
 
-# import ollama
+import ollama
 import requests
-
-LABELS = [
-    "[[NAME:Medical_personnel]]", "[[NAME:patient]]", "[[NAME:other]]",
-    "[[ADDRESS]]", "[[DATE]]",
-    "[[CONTACT: Telephone]]", "[[CONTACT: Fax]]", "[[CONTACT: Email]]",
-    "[[ID: SocialID]]", "[[ID: MedicalID]]", "[[ID: InsuranceID]]",
-    "[[NUMBER: Account]]", "[[NUMBER: License]]", "[[NUMBER: VehicleID]]", "[[NUMBER: DeviceID]]",
-    "[[URL]]", "[[IPAdress]]",
-    "[[DEMOGRAPHIC: Age]]", "[[DEMOGRAPHIC: CivilStatus]]", "[[DEMOGRAPHIC: Nationality]]", "[[DEMOGRAPHIC: Profession]]",
-    "[[HOSPITAL: Service]]", "[[HOSPITAL: Building]]", "[[HOSPITAL: Room-Bed]]",
-    "[[PersonalRelation]]"
-]
-
-STYLES = [
-    "in a professional way", "in a professional tone", "in a professional style", 
-#     "in a concise manner",
-#     "in a creative style", "using imagination", "in a storytelling tone", 
-    "in a formal manner", 
-#     "using a variety of sentence structures"
-]
-
-DOC_TYPES = [
-    "discharge summary", "radiology report",
-    # "consultation note", "progress note", "operative report",
-    # "emergency room note", "pathology report", "nursing note",
-    # "physician's order", "admission note", "clinical discharge note", "outpatient clinic note"
-    ]
-
-SPECIALTIES = [
-    "cardiology", "neurology", "oncology", "pediatrics", "orthopedics",
-    "internal medicine", "general surgery", "psychiatry", "endocrinology",
-    "pulmonology", "gastroenterology", "nephrology"
-]
-
-INSTRUCTION_TEMPLATES = [
-        lambda doc, spec, sty, lbl: f"""Generate a synthetic {doc} for a {spec} case {sty}. 
-        Generate it in the exact style of MIMIC dataset.
-        The text should be realistic and resemble actual medical documentation.
-        Include and Replace all PHI/sensitive data with labels from this list in double brackets: {lbl}. 
-        Don't structure it too much. It should be a natural medical live recording.
-        
-        Make sure the text flows naturally and maintains proper medical terminology.""",
-    
-    
-        lambda doc, spec, sty, lbl: f"""Create a synthetic {doc} for a {spec} case {sty}. Generate it in the exact style of MIMIC dataset.
-    The document should be comprehensive.  
-    Include and Replace all PHI/sensitive data with labels from this list in double brackets: {lbl}. 
-    Don't structure it too much. It should be a natural medical live recording.
-    Structure it with these sections:
-    1. Patient Identification (include {random.choice(["[[NAME:patient]]", "[[ID: MedicalID]]", "[[DEMOGRAPHIC: Age]]"])})
-    2. Chief Complaint
-    3. History of Present Illness
-    4. Assessment and Plan
-    5. Any relevant procedures or treatments
-    Maintain medical accuracy while {sty}.""",
-
-        lambda doc, spec, sty, lbl: f"""Write a synthetic {doc} in narrative form {sty} for a {spec} patient. Generate it in the exact style of MIMIC dataset.
-    Don't structure it too much. It should be a natural medical live recording.
-    Include and Replace all PHI/sensitive data with labels from this list in double brackets: {lbl}. 
-    Begin with patient presentation, then describe:
-    - The clinical reasoning process
-    - Diagnostic findings
-    - Therapeutic interventions
-    - Follow-up plans
-    Weave in {random.sample(lbl, min(2, len(lbl)))} organically throughout the text.""",
-
-        lambda doc, spec, sty, lbl: f"""Generate a comprehensive {doc} {sty} showing multidisciplinary care in {spec}.
-    Don't structure it too much. It should be a natural medical live recording.
-    Include and Replace all PHI/sensitive data with labels from this list in double brackets: {lbl}. 
-    Cover:
-    - Primary team assessment
-    - Consultant recommendations
-    - Nursing observations
-    - Therapy inputs
-    Integrate {random.choice(["[[NAME:Medical_personnel]]", "[[HOSPITAL: Service]]"])} naturally in the text.""",
-
-        lambda doc, spec, sty, lbl: f"""Write a detailed synthetic {doc} {sty} focusing on a {spec} procedure.
-    Include and Replace all PHI/sensitive data with labels from this list in double brackets: {lbl}. 
-    Don't structure it too much. It should be a natural medical live recording.
-    Include:
-    - Pre-procedure preparation
-    - Step-by-step technique
-    - Instruments/devices used (reference [[NUMBER: DeviceID]] if applicable)
-    - Post-procedure care
-    Maintain {sty} while being technically precise.""",
-
-]
 
 def generate_prompts(num_prompts: int = 15):
     prompts = []
@@ -161,10 +75,10 @@ class HFAPI(API):
 
         model_name_or_path = self.model_type
 
-        if "deepseek" in model_name_or_path:
-            self.use_ollama = True
-        else:
+        if model_name_or_path=="gpt2":
             self.use_ollama = False
+        else:
+            self.use_ollama = True
 
         if self.use_ollama:
             try:
@@ -320,10 +234,10 @@ class HFAPI(API):
                         full_prompt_text = sample_prompt
                         current_sequences = sequences_per_prompt + (1 if i < remaining_sequences else 0)
                         
-                        print("####")
-                        print(full_prompt_text)
-                        print(f"Generating {current_sequences} sequences for this prompt")
-                        print("####")
+                        # print("####")
+                        # print(full_prompt_text)
+                        # print(f"Generating {current_sequences} sequences for this prompt")
+                        # print("####")
 
                         if not self.use_ollama:
                             prompt_input_ids = self.tokenizer(full_prompt_text)['input_ids']
@@ -378,9 +292,6 @@ class HFAPI(API):
         return all_sequences, additional_info, sync_labels_counter, all_prefix_prompts
     
     def _generate_text_ollama(self, prompt, seq_num, max_length):
-
-        print("GENERATE TEXT OLLAMA", prompt)
-
         all_data = []
 
         for _ in range(seq_num):
@@ -390,13 +301,14 @@ class HFAPI(API):
                 response = self.client.generate(
                     model=self.model_type,
                     prompt=prompt,
-                    options={'temperature': self.temperature, 'num_predict': max_length}
+                    options={'temperature': self.temperature, 
+                            #  'num_predict': max_length
+                             }
                 )
-                generated_text = response.get("response", "").strip()
-
+                generated_text = response["response"] 
+            
             if generated_text:
-                seq = " ".join(generated_text.split())
-                all_data.append(seq)
+                all_data.append(generated_text)
 
         return all_data
 
@@ -473,7 +385,6 @@ class HFAPI(API):
         num_seq = len(sequences)
         all_data = []
         all_labels = []
-
         self.mlm_probability = variation_degree
 
         for i in tqdm(range(num_seq // batch_size + 1)):
@@ -483,61 +394,32 @@ class HFAPI(API):
             end_idx = min((i + 1) * batch_size, num_seq)
 
             for idx in range(start_idx, end_idx):
-                # print("TEXT VARIATION OLLAMA SEQUENCES" , sequences[idx])
-
-                prompt = self._rephrase(
-                    labels[idx], sequences[idx], variation_type)
+                prompt = self._rephrase(labels[idx], sequences[idx], variation_type)
                 
-                # print("TEXT VARIATION OLLAMA PROMPT", prompt)
-
                 if self.dry_run:
                     generated_text = prompt + "s" * self.length
                 else:
                     response = self.client.generate(
                         model=self.model_type,
                         prompt=prompt,
-                        options={'temperature': self.temperature, 'num_predict': self.length}
+                        options={'temperature': self.temperature, 
+                                #  'num_predict': self.length
+                                 }
                     )
-                    generated_text = response.get("response", "").strip()
+                    generated_text = response["response"]  # Direct access, preserves all formatting
 
-                seq = " ".join(generated_text.split())
-                lab = labels[idx].strip().split("\t")
-
-                if seq:
-                    all_data.append(seq)
+                # Remove all whitespace normalization
+                lab = labels[idx].split("\t")  # Removed strip()
+                
+                if generated_text:  # Check if not empty
+                    all_data.append(generated_text)
                 else:
                     all_data.append(prompt)
 
                 all_labels.append(lab)
 
         logging.info(f"_text_variation_ollama output lens: {len(all_data)}")
-
         return all_data, all_labels
-
-    def _rephrase(self, label, sequence, variation_type):
-
-        if variation_type == "yelp_rephrase_tone":
-            selected_style = ALL_styles[random.randrange(len(ALL_styles))]
-            prompt = "Based on {}, please rephrase the following sentences {}:\n{} \n".format(
-                label, selected_style, sequence)
-        elif variation_type == "openreview_rephrase_tone":
-            selected_style = ALL_OPENREVIEW_styles[random.randrange(
-                len(ALL_OPENREVIEW_styles))]
-            prompt = "Based on {}, please rephrase the following sentences {} as a paper review:\n{} \n".format(
-                label, selected_style, sequence)
-        elif variation_type == "pubmed_rephrase_tone":
-            selected_style = ALL_PUBMED_styles[random.randrange(
-                len(ALL_PUBMED_styles))]
-            prompt = "Please rephrase the following sentences {} as an abstract for medical research paper:\n{} \n".format(
-                selected_style, sequence)
-            
-        elif variation_type == "mimic_rephrase_tone":
-            selected_style = ALL_MIMIC_styles[random.randrange(
-                len(ALL_MIMIC_styles))]
-            prompt = "Please rephrase the following sentences {}:\n{} \n".format(
-                selected_style, sequence)
-
-        return prompt
 
     def _text_variation(self, sequences, labels, variation_degree, variation_type, batch_size):
         if self.dry_run:
@@ -598,3 +480,30 @@ class HFAPI(API):
         logging.info(f" _text_variation output lens  {len(all_data)}")
 
         return all_data, all_labels
+    
+
+    def _rephrase(self, label, sequence, variation_type):
+
+        if variation_type == "yelp_rephrase_tone":
+            selected_style = ALL_styles[random.randrange(len(ALL_styles))]
+            prompt = "Based on {}, please rephrase the following sentences {}:\n{} \n".format(
+                label, selected_style, sequence)
+        elif variation_type == "openreview_rephrase_tone":
+            selected_style = ALL_OPENREVIEW_styles[random.randrange(
+                len(ALL_OPENREVIEW_styles))]
+            prompt = "Based on {}, please rephrase the following sentences {} as a paper review:\n{} \n".format(
+                label, selected_style, sequence)
+        elif variation_type == "pubmed_rephrase_tone":
+            selected_style = ALL_PUBMED_styles[random.randrange(
+                len(ALL_PUBMED_styles))]
+            prompt = "Please rephrase the following sentences {} as an abstract for medical research paper:\n{} \n".format(
+                selected_style, sequence)
+            
+        elif variation_type == "mimic_rephrase_tone":
+            selected_style = DISCHARGE_LETTER_STYLES[random.randrange(
+                len(DISCHARGE_LETTER_STYLES))]
+            rewrite_template = DISCHARGE_REWRITE_PROMPTS[random.randrange(
+                len(DISCHARGE_REWRITE_PROMPTS))]
+            prompt = rewrite_template.format(style=selected_style, text=sequence)
+
+        return prompt

@@ -74,12 +74,40 @@ ALL_PUBMED_styles = ["in a professional way", "in a professional tone",  "in a p
                      "in a creative style", "using imagination", "in a storytelling tone",  "in a formal manner", "using a variety of sentence structures"
                      ]
 
-ALL_MIMIC_styles = [
-    "in a professional way", "in a professional tone", "in a professional style", 
-#     "in a concise manner",
-#     "in a creative style", "using imagination", "in a storytelling tone", 
-    "in a formal manner", 
-#     "using a variety of sentence structures"
+# ALL_MIMIC_styles = [
+#     "in a professional way", "in a professional tone", "in a professional style", 
+# #     "in a concise manner",
+# #     "in a creative style", "using imagination", "in a storytelling tone", 
+#     "in a formal manner", 
+# #     "using a variety of sentence structures"
+# ]
+
+# ALL_MIMIC_styles = [
+#     "in a professional way", "in a professional tone", "in a professional style",
+#     "in a professional clinical tone", "using concise medical terminology",
+#     "with thorough clinical details", "in a structured but natural clinical narrative",
+#     "with precise medical observations", "including relevant clinical context",
+#     "with appropriate medical abbreviations", "in a detailed but readable style"
+# ]
+
+DISCHARGE_LETTER_STYLES = [
+    "in a professional clinical tone",
+    "as a senior attending physician would document",
+    "using precise clinical terminology",
+    "with thorough discharge instructions",
+    "with complete but concise medical details",
+    "in an academic hospital discharge style",
+    "following typical discharge note structure",
+    "with variation in symptoms and plausible diagnoses",
+    "as if written by a different clinician",
+]
+
+DISCHARGE_REWRITE_PROMPTS = [
+    "Rephrase this discharge letter {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]:\n{text}",
+    "Rewrite this discharge summary {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Preserve the original structure and section headers verbatim, but modifying the clinical content where appropriate:\n{text}",
+    "Rephrase this hospital discharge {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Maintain identical section organization while varying the medical details:\n{text}",
+    "Rewrite this discharge document {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. You may reword clinical content within sections:\n{text}",
+    "Rephrase this discharge note {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. And modify the narrative portions:\n{text}"
 ]
 
 

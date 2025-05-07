@@ -3,7 +3,7 @@ import os
 import numpy as np
 import csv
 import json
-from dpsda.metrics import calculate_fid, knn_precision_recall_features
+from dpsda.metrics import calculate_fid, knn_precision_recall_features, compare_text_sets
 
 
 def setup_logging(log_file):
@@ -98,6 +98,14 @@ def log_count(count, clean_count, path):
         csv_writer.writerow(["clean_count", clean_count.tolist()])
 
 
+def log_metrics(seed_syn_samples, all_private_texts, emb_synth, emb_real, step=0, log_online=False):
+    metrics = compare_text_sets(seed_syn_samples, all_private_texts, emb_synth, emb_real)
+    logging.info(f"Metrics: {metrics}")
+
+    if log_online:
+        import wandb
+        wandb.log(metrics, step=step)
+
 def compute_fid(synthetic_features, all_private_features, feature_extractor, folder='', step=0, log_online=False):
 
     logging.info(
@@ -135,14 +143,14 @@ def log_samples(samples, additional_info, folder):
         seq = samples[i]
         labels = additional_info[i]
         if seq:
-            seq = " ".join(seq.split())
-            if "pubmed" in labels:
+            # seq = " ".join(seq.split())
+            if "pubmed" in labels or "mimic" in labels:
                 all_data.append([seq])
             else:
                 labels = labels.strip().split("\t")
                 all_data.append([seq]+labels)
 
-    if "pubmed" in additional_info[0]:  # unconditional
+    if "pubmed" in additional_info[0] or "mimic" in additional_info[0]:  # unconditional
         title = ['text']
     else:
         title = ['text', 'label1', 'label2']

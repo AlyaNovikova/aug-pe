@@ -2,7 +2,7 @@
 import logging
 import os
 import numpy as np
-from dpsda.logging import setup_logging, log_num_words, load_embeddings, log_samples, log_count, compute_fid, log_prompt_generation
+from dpsda.logging import setup_logging, log_num_words, load_embeddings, log_samples, log_count, compute_fid, log_metrics, log_prompt_generation
 from dpsda.data_loader import load_data
 from dpsda.feature_extractor import extract_features
 from dpsda.dp_counter import dp_nn_histogram
@@ -99,14 +99,22 @@ def main():
     log_samples(samples=seed_syn_samples, additional_info=seed_additional_info,
                 folder=f'{args.result_folder}/{start_t-1}')
     if args.compute_fid:
+
+        # print("-----------------------------111-\n\n", seed_syn_samples, "------------------------------\n\n")
+
         synthetic_features = extract_features(
             data=seed_syn_samples,
             batch_size=args.feature_extractor_batch_size,
             model_name=args.feature_extractor,
 
         )
+        # print("-----------------------------222-\n\n", synthetic_features, "------------------------------\n\n")
+
         compute_fid(synthetic_features, all_private_features, args.feature_extractor,
                     folder=args.result_folder,  step=start_t-1, log_online=args.log_online)
+        log_metrics(seed_syn_samples, all_private_samples, 
+                        synthetic_features, all_private_features,
+                        step=start_t-1, log_online=args.log_online)
 
     if args.init_combine_divide_L > 1:
         parent_directory = os.path.dirname(args.data_checkpoint_path)
@@ -324,14 +332,23 @@ def main():
                                additional_info=all_selected_additional_info, folder=f'{args.result_folder}/{t}')
 
         if args.compute_fid:
+            # print("-----------------------------333-\n\n", all_selected_samples, "------------------------------\n\n")
+
             synthetic_features = extract_features(
                 data=all_selected_samples,
                 batch_size=args.feature_extractor_batch_size,
                 model_name=args.feature_extractor,
 
             )
+            # print("-----------------------------444-\n\n", synthetic_features, "------------------------------\n\n")
+
             compute_fid(synthetic_features, all_private_features, args.feature_extractor,
                         folder=args.result_folder,  step=t, log_online=args.log_online)
+            log_metrics(all_selected_samples, all_private_samples, 
+                        synthetic_features, all_private_features,
+                        step=t, log_online=args.log_online)
+
+                        
         all_data = log_samples(
             samples=syn_samples,  additional_info=additional_info, folder=f'{args.result_folder}/{t}_all')
 

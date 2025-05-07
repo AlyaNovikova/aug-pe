@@ -16,7 +16,121 @@ from scipy.linalg import sqrtm
 # calculate inception score with Keras
 from sklearn.metrics import pairwise_distances
 
+from bert_score import score
 
+def compute_bertscore(generated_texts, reference_texts):
+    P, R, F1 = score(generated_texts, reference_texts, lang="en", verbose=True)
+    return {
+        "bertscore_precision": P.mean().item(),
+        "bertscore_recall": R.mean().item(),
+        "bertscore_f1": F1.mean().item(),
+    }
+
+from sklearn.metrics.pairwise import cosine_similarity
+
+def average_cosine_similarity(emb_a, emb_b):
+    sim_matrix = cosine_similarity(emb_a, emb_b)
+    
+    return {
+        "avg_cosine_sim": sim_matrix.mean(),
+        "avg_cosine_sim_a_to_b": sim_matrix.mean(axis=1).mean(), 
+        "avg_cosine_sim_b_to_a": sim_matrix.mean(axis=0).mean(),  # Avg for each B vs all A
+    }
+
+def vocabulary_overlap(texts_a, texts_b):
+    words_a = set(" ".join(texts_a).split())
+    words_b = set(" ".join(texts_b).split())
+    
+    intersection = words_a & words_b
+    union = words_a | words_b
+    
+    return {
+        "jaccard_similarity": len(intersection) / len(union) if union else 0,
+        "vocab_a_size": len(words_a),
+        "vocab_b_size": len(words_b),
+    }
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from scipy.spatial import distance
+
+def word_distribution_similarity(texts_a, texts_b):
+    vectorizer = TfidfVectorizer().fit(texts_a + texts_b)
+    
+    # Convert sparse matrices to dense 1D arrays (average TF-IDF per word)
+    tfidf_a = np.asarray(vectorizer.transform(texts_a).mean(axis=0)).flatten()
+    tfidf_b = np.asarray(vectorizer.transform(texts_b).mean(axis=0)).flatten()
+    
+    # Compute cosine similarity (1 - cosine distance)
+    cos_sim = 1 - distance.cosine(tfidf_a, tfidf_b)
+    return {
+        "tfidf_cosine_sim": cos_sim,
+        "tfidf_cosine_distance": 1 - cos_sim,  # For consistency
+    }
+
+import numpy as np
+from sklearn.metrics.pairwise import polynomial_kernel
+
+def compute_mmd(embeddings_a, embeddings_b):
+    K_aa = polynomial_kernel(embeddings_a, embeddings_a)
+    K_bb = polynomial_kernel(embeddings_b, embeddings_b)
+    K_ab = polynomial_kernel(embeddings_a, embeddings_b)
+    
+    mmd = K_aa.mean() + K_bb.mean() - 2 * K_ab.mean()
+    return {"mmd": mmd}
+
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+
+def compute_self_bleu(texts):
+    scores = []
+    smoothie = SmoothingFunction().method4
+    for i in range(len(texts)):
+        refs = [texts[j] for j in range(len(texts)) if j != i]
+        scores.append(sentence_bleu(refs, texts[i], smoothing_function=smoothie))
+    return {"self_bleu": sum(scores) / len(scores)}
+
+from collections import Counter
+
+def compute_diversity(texts, n_gram=2):
+    n_grams = []
+    for text in texts:
+        tokens = text.split()
+        n_grams.extend(zip(*[tokens[i:] for i in range(n_gram)]))
+    
+    unique_ngrams = set(n_grams)
+    diversity = len(unique_ngrams) / len(n_grams) if n_grams else 0
+    return {"diversity": diversity}
+
+# def evaluate_text_metrics(synthetic_texts, real_texts):
+#     metrics = {}
+    
+#     # Semantic Quality
+#     metrics.update(compute_bertscore(synthetic_texts, real_texts))
+    
+#     # Diversity
+#     metrics.update(compute_diversity(synthetic_texts, n_gram=2))
+#     metrics.update(compute_self_bleu(synthetic_texts))
+    
+#     # Distributional Similarity (Optional)
+#     metrics.update(compute_mmd(real_texts, synthetic_texts))
+    
+#     return metrics
+
+def compare_text_sets(synthetic_texts, real_texts, emb_synth, emb_real):
+    metrics = {}
+    
+    # 1. Semantic similarity
+    metrics.update(average_cosine_similarity(emb_synth, emb_real))
+    
+    # 2. Vocabulary overlap
+    metrics.update(vocabulary_overlap(synthetic_texts, real_texts))
+    
+    # 3. Word frequency (TF-IDF)
+    metrics.update(word_distribution_similarity(synthetic_texts, real_texts))
+    
+    # 4. MMD
+    metrics.update(compute_mmd(emb_synth, emb_real))
+    
+    return metrics
 
 # calculate frechet inception distance
 def calculate_fid(act1, act2):

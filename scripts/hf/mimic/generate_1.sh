@@ -15,16 +15,12 @@ word_var_scale=0
 select_syn_mode=rank
 random_str="_ollama_rephrase_pr_01"
 # model_type="gpt2"
-model_type="mistral"
+# model_type="mistral"
 # model_type="deepseek-v2.5"
 # model_type="aravhawk/llama4"
 # model_type="ingu627/llama4-scout-q4:109b"
 # model_type="llama3.3"
-# model_type="deepseek-r1:70b"
-# model_type="qwen:72b"
-# model_type="mistral-small3.1"
-# model_type="mistral-large"
-# model_type="qwen3:235b"
+model_type="mistral-small3.1"
 # model_type="deepseek-v2:16b"
 # model_type="mistralai/Mixtral-8x7B-Instruct-v0.1"
 noise=0
@@ -38,7 +34,7 @@ elif [ "$model_type" = "gpt2-medium" ]; then
 elif [ "$model_type" = "gpt2" ]; then
     batch_size=128
 else
-    batch_size=16
+    batch_size=32
 fi
 result_folder="result/mimic/${model_type}_${feat_ext}/${num_samples}_n${noise}_L${L}_initL${init_L}_var${lookahead_degree}_${var_type}_${select_syn_mode}_len${length}var${word_var_scale}_t${temperature}_${random_str}"
 
@@ -57,8 +53,6 @@ else
 fi
 done
 echo load data from ${data_checkpoint_args} ${args}
-
-pip install bert_score
 
 ### run PE
 python main.py ${args} ${data_checkpoint_args} \

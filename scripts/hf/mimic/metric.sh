@@ -1,10 +1,11 @@
 
 feat_ext="sentence-t5-base"
 epochs=2
-result_folder="result/mimic/gpt2_sentence-t5-base/70_1_n0_L7_initL7_var0_mimic_rephrase_tone_rank_len448var0_t1.0"
+model_folder="llama3.3_sentence-t5-base/70_n0_L7_initL7_var0_mimic_rephrase_tone_rank_len1024var0_t1.0__ollama_metrics_04"
+result_folder="result/mimic/${model_folder}"
 min_token_threshold=50
 
-python metric.py \
+CUDA_VISIBLE_DEVICES=2 python metric.py \
     --private_data_size 100 \
     --synthetic_folder ${result_folder} \
     --run 5  \
@@ -14,6 +15,7 @@ python metric.py \
     --train_data_embeddings_file result/embeddings/${feat_ext}/mimic_train_all.embeddings.npz \
     --model_name_or_path ${feat_ext} \
     --dataset mimic \
+    --wandb_name ${model_folder} \
 
 
 
