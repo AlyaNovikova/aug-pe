@@ -38,6 +38,10 @@ def num_tokens_from_string(string, encoding):
 
 # calculate frechet inception distance
 def calculate_fid(act1, act2):
+    # Normalize embeddings first
+    act1 = (act1 - act1.mean()) / act1.std()
+    act2 = (act2 - act2.mean()) / act2.std()
+
     # calculate mean and covariance statistics
     mu1, sigma1 = act1.mean(axis=0), cov(act1, rowvar=False)
     mu2, sigma2 = act2.mean(axis=0), cov(act2, rowvar=False)
@@ -144,11 +148,13 @@ def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_si
                     synthetic_data.append(d)
             except:
                 continue
-    elif dataset == "openreview" or dataset == "pubmed" or dataset == "mimic":
+    elif dataset == "openreview" or dataset == "pubmed":
         for index, d in enumerate(syn_data['train']['text']):
             len_d = num_tokens_from_string(d, encoding)
             if len_d > min_token_threshold:
                 synthetic_data.append(d)
+    elif dataset == "mimic":
+        synthetic_data = [d for d in syn_data['train']['text']]
     else:
         synthetic_data = [d for d in syn_data['train']['text']]
     print("--- syn data len %d  ---" % (len(synthetic_data)))
