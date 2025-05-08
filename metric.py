@@ -17,6 +17,8 @@ from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 from datasets import load_dataset
 
+from dpsda.metrics import calculate_fid
+
 from dpsda.logging import *
 from utility_eval.compute_mauve import *
 from utility_eval.precision_recall import *
@@ -36,27 +38,6 @@ def num_tokens_from_string(string, encoding):
     return num_tokens
 
 
-# calculate frechet inception distance
-def calculate_fid(act1, act2):
-    # Normalize embeddings first
-    act1 = (act1 - act1.mean()) / act1.std()
-    act2 = (act2 - act2.mean()) / act2.std()
-
-    # calculate mean and covariance statistics
-    mu1, sigma1 = act1.mean(axis=0), cov(act1, rowvar=False)
-    mu2, sigma2 = act2.mean(axis=0), cov(act2, rowvar=False)
-    # calculate sum squared difference between means
-    ssdiff = np.sum((mu1 - mu2) ** 2.0)
-    # calculate sqrt of product between cov
-    covmean = sqrtm(sigma1.dot(sigma2))
-    # check and correct imaginary numbers from sqrt
-    if iscomplexobj(covmean):
-        covmean = covmean.real
-    # calculate score
-    fid = ssdiff + trace(sigma1 + sigma2 - 2.0 * covmean)
-    return fid
-
-
 def calculate_all_metrics(synthetic_embeddings, original_embeddings, k=3):
     method_name = ""
     p_feats = synthetic_embeddings  # feature dimension = 1024
@@ -66,8 +47,8 @@ def calculate_all_metrics(synthetic_embeddings, original_embeddings, k=3):
     p_hist, q_hist = result.p_hist, result.q_hist
     kl, tv, wass = calculate_other_metrics(p_hist, q_hist)
 
-    state = knn_precision_recall_features(
-        original_embeddings, synthetic_embeddings, nhood_sizes=[k])
+    state = knn_precision_recall_embeddings(
+        original_embeddings, synthetic_embeddings, k=3)
     print(state)
 
     from geomloss import SamplesLoss  # See also ImagesLoss, VolumesLoss

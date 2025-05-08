@@ -27,6 +27,13 @@ from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 from datasets import load_dataset
 
+from sklearn.metrics.pairwise import cosine_distances
+from sklearn.neighbors import NearestNeighbors
+from scipy.spatial.distance import cosine
+from time import time
+import torch
+from bert_score import score as bert_score
+
 
 # ----------------------------------------------------------------------------
 
@@ -196,6 +203,50 @@ def knn_precision_recall_features(ref_features, eval_features, nhood_sizes=[3],
     return state
 
 
+def knn_precision_recall_embeddings(ref_features, eval_features, k=3):
+    """
+    Calculates k-NN precision, recall, and F1 between two feature sets using cosine distance.
+
+    Args:
+        ref_features (np.ndarray): Reference (real) text embeddings.
+        eval_features (np.ndarray): Generated (synthetic) text embeddings.
+        k (int): Number of neighbors.
+
+    Returns:
+        dict: Precision, recall, and F1 score.
+    """
+    state = {}
+
+    # Normalize features to unit length (cosine distance)
+    ref_features = ref_features / np.linalg.norm(ref_features, axis=1, keepdims=True)
+    eval_features = eval_features / np.linalg.norm(eval_features, axis=1, keepdims=True)
+
+    # Fit kNN on reference features
+    knn_ref = NearestNeighbors(n_neighbors=k, metric='cosine').fit(ref_features)
+    distances_eval_to_ref, _ = knn_ref.kneighbors(eval_features)
+
+    precision = np.mean(distances_eval_to_ref[:, -1] < 0.5)  # 0.5 is a common cosine threshold
+
+    knn_eval = NearestNeighbors(n_neighbors=k, metric='cosine').fit(eval_features)
+    distances_ref_to_eval, _ = knn_eval.kneighbors(ref_features)
+
+    recall = np.mean(distances_ref_to_eval[:, -1] < 0.5)
+
+    if precision + recall > 0:
+        f1 = 2 * (precision * recall) / (precision + recall)
+    else:
+        f1 = 0.0
+
+    state.update({
+        "precision": precision,
+        "recall": recall,
+        "f1": f1
+    })
+
+    return state
+
+
+
 # ----------------------------------------------------------------------------
 
 def balance_dataset(dataset, sample_size=5000):
@@ -211,23 +262,6 @@ def balance_dataset(dataset, sample_size=5000):
     training_dataset = training_dataset.select(sample_indices)
     dataset['train'] = training_dataset
     return dataset
-
-
-# calculate frechet inception distance
-def calculate_fid(act1, act2):
-    # calculate mean and covariance statistics
-    mu1, sigma1 = act1.mean(axis=0), cov(act1, rowvar=False)
-    mu2, sigma2 = act2.mean(axis=0), cov(act2, rowvar=False)
-    # calculate sum squared difference between means
-    ssdiff = np.sum((mu1 - mu2) ** 2.0)
-    # calculate sqrt of product between cov
-    covmean = sqrtm(sigma1.dot(sigma2))
-    # check and correct imaginary numbers from sqrt
-    if iscomplexobj(covmean):
-        covmean = covmean.real
-    # calculate score
-    fid = ssdiff + trace(sigma1 + sigma2 - 2.0 * covmean)
-    return fid
 
 
 def log_embeddings(embeddings, additional_info, folder, fname=''):

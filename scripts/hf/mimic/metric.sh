@@ -1,11 +1,11 @@
 
 feat_ext="sentence-t5-base"
-epochs=2
-model_folder="llama3.3_sentence-t5-base/70_n0_L7_initL7_var0_mimic_rephrase_tone_rank_len1024var0_t1.0__ollama_metrics_04"
-result_folder="result/mimic/${model_folder}"
+epochs=10
+model_folder="aravhawk/llama4_sentence-t5-base/70_n0_L7_initL7_var0_mimic_rephrase_tone_rank_len1024var0_t1.0__ollama_rephrase_pr_01"
+result_folder="result/mimic_play_metric/${model_folder}"
 min_token_threshold=50
 
-CUDA_VISIBLE_DEVICES=2 python metric.py \
+CUDA_VISIBLE_DEVICES=0 python metric.py \
     --private_data_size 100 \
     --synthetic_folder ${result_folder} \
     --run 5  \

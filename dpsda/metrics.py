@@ -134,6 +134,10 @@ def compare_text_sets(synthetic_texts, real_texts, emb_synth, emb_real):
 
 # calculate frechet inception distance
 def calculate_fid(act1, act2):
+    # Normalize embeddings first
+    act1 = (act1 - act1.mean()) / act1.std()
+    act2 = (act2 - act2.mean()) / act2.std()
+    
     # calculate mean and covariance statistics
     mu1, sigma1 = act1.mean(axis=0), cov(act1, rowvar=False)
     mu2, sigma2 = act2.mean(axis=0), cov(act2, rowvar=False)
