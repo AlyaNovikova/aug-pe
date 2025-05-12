@@ -324,3 +324,46 @@ def knn_precision_recall_features(ref_features, eval_features, nhood_sizes=[3],
     print('Evaluated k-NN precision and recall in: %gs' % (time() - start))
 
     return state
+
+
+def knn_precision_recall_embeddings(ref_features, eval_features, k=3):
+    """
+    Calculates k-NN precision, recall, and F1 between two feature sets using cosine distance.
+
+    Args:
+        ref_features (np.ndarray): Reference (real) text embeddings.
+        eval_features (np.ndarray): Generated (synthetic) text embeddings.
+        k (int): Number of neighbors.
+
+    Returns:
+        dict: Precision, recall, and F1 score.
+    """
+    state = {}
+
+    # Normalize features to unit length (cosine distance)
+    ref_features = ref_features / np.linalg.norm(ref_features, axis=1, keepdims=True)
+    eval_features = eval_features / np.linalg.norm(eval_features, axis=1, keepdims=True)
+
+    # Fit kNN on reference features
+    knn_ref = NearestNeighbors(n_neighbors=k, metric='cosine').fit(ref_features)
+    distances_eval_to_ref, _ = knn_ref.kneighbors(eval_features)
+
+    precision = np.mean(distances_eval_to_ref[:, -1] < 0.5)  # 0.5 is a common cosine threshold
+
+    knn_eval = NearestNeighbors(n_neighbors=k, metric='cosine').fit(eval_features)
+    distances_ref_to_eval, _ = knn_eval.kneighbors(ref_features)
+
+    recall = np.mean(distances_ref_to_eval[:, -1] < 0.5)
+
+    if precision + recall > 0:
+        f1 = 2 * (precision * recall) / (precision + recall)
+    else:
+        f1 = 0.0
+
+    state.update({
+        "precision": precision,
+        "recall": recall,
+        "f1": f1
+    })
+
+    return state

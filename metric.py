@@ -29,6 +29,120 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
 
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+from bert_score import score as bert_score
+from collections import Counter
+import numpy as np
+import itertools
+import nltk
+from scipy.stats import entropy, wasserstein_distance
+
+import pandas as pd
+
+nltk.download('punkt')
+nltk.download('punkt_tab')
+
+def get_lengths(texts):
+    return [len(nltk.word_tokenize(t)) for t in texts]
+
+def plot_length_distributions(real_lengths, synth_lengths, filename="length_distribution.png"):
+    plt.figure(figsize=(10, 6))
+    bins = range(0, max(max(real_lengths), max(synth_lengths)) + 5, 1)
+    plt.hist(real_lengths, bins=bins, alpha=0.6, label="Real", color='blue', density=True)
+    plt.hist(synth_lengths, bins=bins, alpha=0.6, label="Synthetic", color='orange', density=True)
+    plt.xlabel("Token Length")
+    plt.ylabel("Density")
+    plt.title("Distribution of Token Lengths")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(filename)
+    plt.close()
+
+def compare_length_distributions(real_lengths, synth_lengths):
+    max_len = max(max(real_lengths), max(synth_lengths))
+    bins = np.arange(0, max_len + 2) - 0.5  # for integer binning
+
+    real_hist, _ = np.histogram(real_lengths, bins=bins, density=True)
+    synth_hist, _ = np.histogram(synth_lengths, bins=bins, density=True)
+
+    # Avoid zero probabilities in KL (add small epsilon)
+    epsilon = 1e-8
+    real_hist += epsilon
+    synth_hist += epsilon
+
+    kl_div = entropy(real_hist, synth_hist)
+    w_dist = wasserstein_distance(real_lengths, synth_lengths)
+
+    return {
+        "length_real_mean": np.mean(real_lengths),
+        "length_synthetic_mean": np.mean(synth_lengths),
+        "length_real_std": np.std(real_lengths),
+        "length_synthetic_std": np.std(synth_lengths),
+        "length_kl_divergence": kl_div,
+        "length_wasserstein_distance": w_dist
+    }
+
+def compute_bleu(real_texts, synthetic_texts):
+    smoothie = SmoothingFunction().method4
+    scores = []
+    for ref, hyp in zip(real_texts, synthetic_texts):
+        ref_tokens = nltk.word_tokenize(ref)
+        hyp_tokens = nltk.word_tokenize(hyp)
+        scores.append(sentence_bleu([ref_tokens], hyp_tokens, smoothing_function=smoothie))
+    return np.mean(scores)
+
+def compute_bertscore(real_texts, synthetic_texts, lang='en'):
+    P, R, F1 = bert_score(synthetic_texts, real_texts, lang=lang, verbose=False)
+    return {
+        "precision": P.mean().item(),
+        "recall": R.mean().item(),
+        "f1": F1.mean().item()
+    }
+
+from tqdm import tqdm
+
+def compute_bertscore_pairwise(real_texts, synthetic_texts, lang='en'):
+    all_precisions = []
+    all_recalls = []
+    all_f1s = []
+
+    for syn in tqdm(synthetic_texts, desc="Computing BERTScore pairwise"):
+        # Compare current synthetic sample against all real texts
+        P, R, F1 = bert_score([syn] * len(real_texts), real_texts, lang=lang, verbose=False)
+        all_precisions.append(P.mean().item())
+        all_recalls.append(R.mean().item())
+        all_f1s.append(F1.mean().item())
+
+    return {
+        "pairwise_precision_mean": np.mean(all_precisions),
+        "pairwise_precision_std": np.std(all_precisions),
+        "pairwise_recall_mean": np.mean(all_recalls),
+        "pairwise_recall_std": np.std(all_recalls),
+        "pairwise_f1_mean": np.mean(all_f1s),
+        "pairwise_f1_std": np.std(all_f1s),
+    }
+
+def compute_distinct_2(texts):
+    all_bigrams = list(itertools.chain.from_iterable(
+        zip(tokens, tokens[1:]) for tokens in [nltk.word_tokenize(t) for t in texts]
+    ))
+    total_bigrams = len(all_bigrams)
+    unique_bigrams = len(set(all_bigrams))
+    return unique_bigrams / total_bigrams if total_bigrams > 0 else 0
+
+def compute_self_bleu(texts):
+    smoothie = SmoothingFunction().method4
+    scores = []
+    for i, hyp in enumerate(texts):
+        references = texts[:i] + texts[i+1:]
+        references_tokenized = [nltk.word_tokenize(ref) for ref in references]
+        hyp_tokenized = nltk.word_tokenize(hyp)
+        score = sentence_bleu(references_tokenized, hyp_tokenized, smoothing_function=smoothie)
+        scores.append(score)
+    return np.mean(scores)
+
+
+
 def num_tokens_from_string(string, encoding):
     """Returns the number of tokens in a text string."""
     try:
@@ -47,8 +161,8 @@ def calculate_all_metrics(synthetic_embeddings, original_embeddings, k=3):
     p_hist, q_hist = result.p_hist, result.q_hist
     kl, tv, wass = calculate_other_metrics(p_hist, q_hist)
 
-    state = knn_precision_recall_embeddings(
-        original_embeddings, synthetic_embeddings, k=3)
+    state = knn_precision_recall_features(
+        original_embeddings, synthetic_embeddings, nhood_sizes=[k])
     print(state)
 
     from geomloss import SamplesLoss  # See also ImagesLoss, VolumesLoss
@@ -118,7 +232,8 @@ def plot_metrics(metrics_history, output_dir):
     wandb.log({"plots/all_metrics_normalized": wandb.Image(combined_path)})
 
 
-def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_size, private_data_size, num_run, k, dataset="yelp", min_token_threshold=100, epoch=None):
+def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_size, private_data_size, num_run, k, dataset="yelp", min_token_threshold=100, epoch=None, 
+                  real_file="", synthetic_folder=""):
     syn_data = load_dataset("csv", data_files=syn_fname)
 
     synthetic_data = []
@@ -177,6 +292,29 @@ def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_si
         start_time = time.time()
         precision, recall, f1, mauve, kl, tv, wass, sinkhorn_loss = calculate_all_metrics(
             synthetic_embeddings, original_embeddings, k)
+        
+        if real_file != "":
+            df = pd.read_csv(real_file)  
+            real_text_list = df["text"].tolist()
+
+            # bert_score = compute_bertscore(real_text_list, synthetic_data)
+            bert_score = compute_bertscore(real_text_list[:len(synthetic_data)], synthetic_data)["f1"]
+            # bert_score = compute_bertscore_pairwise(real_text_list, synthetic_data)["pairwise_f1_mean"]
+            blue = compute_bleu(real_text_list, synthetic_data)
+
+            self_blue = compute_self_bleu(synthetic_data)
+            distinct_2 = compute_distinct_2(synthetic_data)
+
+            real_lengths = get_lengths(real_text_list)
+            synth_lengths = get_lengths(synthetic_data)
+
+            plots_folder = os.path.join(synthetic_folder, "plots_metrics")
+            os.makedirs(plots_folder, exist_ok=True)
+            plot_length_distributions(real_lengths, synth_lengths, filename=os.path.join(plots_folder, f"length_distribution_{epoch}.png"))
+            dict_lengths_metrics = compare_length_distributions(real_lengths, synth_lengths)
+
+        else:
+            bert_score, blue, self_blue, distinct_2 = 0, 0, 0, 0
 
         print("--- %s seconds for computing metric ---" %
               (time.time() - start_time))
@@ -185,7 +323,14 @@ def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_si
             writer = csv.writer(file)
             if run == 0:
                 writer.writerow(["run", "fid", "precision", "recall",
-                                "f1", "mauve", "kl", "tv", "wass", "sinkhorn_loss"])
+                                "f1", "mauve", "kl", "tv", "wass", "sinkhorn_loss",
+                                "bert_score", "blue", "self_blue", "distinct_2",
+                                "length_real_mean",
+                                "length_synthetic_mean",
+                                "length_real_std",
+                                "length_synthetic_std",
+                                "length_kl_divergence",
+                                "length_wasserstein_distance"])
             row_list = [
                 round(fid, 4),
                 round(precision, 4),
@@ -196,6 +341,18 @@ def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_si
                 round(tv, 4),
                 round(wass, 4),
                 round(sinkhorn_loss, 4),
+
+                round(bert_score, 4),
+                round(blue, 4),
+                round(self_blue, 4),
+                round(distinct_2, 4),
+
+                round(dict_lengths_metrics["length_real_mean"], 4),
+                round(dict_lengths_metrics["length_synthetic_mean"], 4),
+                round(dict_lengths_metrics["length_real_std"], 4),
+                round(dict_lengths_metrics["length_synthetic_std"], 4),
+                round(dict_lengths_metrics["length_kl_divergence"], 4),
+                round(dict_lengths_metrics["length_wasserstein_distance"], 4),
             ]
             writer.writerow([run]+row_list)
 
@@ -218,6 +375,19 @@ def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_si
         "tv": mean_run_results[6],
         "wass": mean_run_results[7],
         "sinkhorn_loss": mean_run_results[8],
+
+        "bert_score": mean_run_results[9],
+        "blue": mean_run_results[10],
+        "self_blue": mean_run_results[11],
+        "distinct_2": mean_run_results[12],
+
+        "length_real_mean": mean_run_results[13],
+        "length_synthetic_mean": mean_run_results[14],
+        "length_real_std": mean_run_results[15],
+        "length_synthetic_std": mean_run_results[16],
+        "length_kl_divergence": mean_run_results[17],
+        "length_wasserstein_distance": mean_run_results[18],
+
     }
 
     if wandb.run is not None:
@@ -254,6 +424,10 @@ def main():
                        required=False)
     parser.add_argument("--min_token_threshold", type=int,
                        default=100,
+                       required=False)
+    
+    parser.add_argument("--real_path", type=str,
+                       default="data/mimic/train.csv",
                        required=False)
 
     parser.add_argument("--model_name_or_path", type=str,
@@ -320,30 +494,31 @@ def main():
             metrics_history[0] = metrics
     else:
         for _iter in range(args.synthetic_start_iter, args.synthetic_iteration + 1):
+            print("\n______________________________\n", "ITERATION !!!!!!!", _iter, "\n______________________________\n")
             syn_data_file = os.path.join(
                 args.synthetic_folder, str(_iter), 'samples.csv')
             if os.path.isfile(syn_data_file):
                 csv_fname = os.path.join(
                     args.synthetic_folder, str(_iter), 'eval_metric.csv')
-                if os.path.exists(csv_fname):
-                    # Load existing metrics if file exists
-                    with open(csv_fname, 'r') as f:
-                        reader = csv.reader(f)
-                        rows = list(reader)
-                        if len(rows) > 1 and rows[-1][0] == "avg":
-                            metrics = {
-                                "fid": float(rows[-1][1]),
-                                "precision": float(rows[-1][2]),
-                                "recall": float(rows[-1][3]),
-                                "f1": float(rows[-1][4]),
-                                "mauve": float(rows[-1][5]),
-                                "kl": float(rows[-1][6]),
-                                "tv": float(rows[-1][7]),
-                                "wass": float(rows[-1][8]),
-                                "sinkhorn_loss": float(rows[-1][9]),
-                            }
-                            metrics_history[_iter] = metrics
-                    continue
+                # if os.path.exists(csv_fname):
+                #     # Load existing metrics if file exists
+                #     with open(csv_fname, 'r') as f:
+                #         reader = csv.reader(f)
+                #         rows = list(reader)
+                #         if len(rows) > 1 and rows[-1][0] == "avg":
+                #             metrics = {
+                #                 "fid": float(rows[-1][1]),
+                #                 "precision": float(rows[-1][2]),
+                #                 "recall": float(rows[-1][3]),
+                #                 "f1": float(rows[-1][4]),
+                #                 "mauve": float(rows[-1][5]),
+                #                 "kl": float(rows[-1][6]),
+                #                 "tv": float(rows[-1][7]),
+                #                 "wass": float(rows[-1][8]),
+                #                 "sinkhorn_loss": float(rows[-1][9]),
+                #             }
+                #             metrics_history[_iter] = metrics
+                #     continue
                 
                 print(f'Processing {csv_fname}')
                 metrics = eval_one_file(syn_fname=syn_data_file, 
@@ -356,7 +531,7 @@ def main():
                                       k=args.k, 
                                       dataset=args.dataset, 
                                       min_token_threshold=args.min_token_threshold,
-                                      epoch=_iter)
+                                      epoch=_iter, real_file=args.real_path, synthetic_folder=args.synthetic_folder)
                 metrics_history[_iter] = metrics
             else:
                 print(f"{syn_data_file} does not exist")
