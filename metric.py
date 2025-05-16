@@ -181,6 +181,64 @@ def calculate_all_metrics(synthetic_embeddings, original_embeddings, k=3):
     return state['precision'], state['recall'], state['f1'], result.mauve, kl, tv, wass, sinkhorn_loss
 
 
+def calculate_all_metrics_dict(synthetic_embeddings, original_embeddings, k=3):
+    import torch
+    from geomloss import SamplesLoss  # See also ImagesLoss, VolumesLoss
+
+    # Compute MAUVE and distribution histograms
+    p_feats = synthetic_embeddings  # feature dimension = 1024
+    q_feats = original_embeddings
+    result = compute_mauve(p_feats, q_feats)
+    p_hist, q_hist = result.p_hist, result.q_hist
+    kl, tv, wass = calculate_other_metrics(p_hist, q_hist)
+
+    # Compute k-NN precision/recall/F1
+    state = knn_precision_recall_features(original_embeddings, synthetic_embeddings, nhood_sizes=[k])
+
+    # Compute Sinkhorn loss (Wasserstein-like distance)
+    p_feats_torch = torch.from_numpy(synthetic_embeddings)
+    q_feats_torch = torch.from_numpy(original_embeddings)
+    loss = SamplesLoss(loss="sinkhorn", p=2, blur=0.05)
+    sinkhorn_loss = loss(p_feats_torch, q_feats_torch).item()
+
+    # Return all metrics in a dictionary
+    return {
+        "precision": state["precision"],
+        "recall": state["recall"],
+        "f1": state["f1"],
+        "mauve": result.mauve,
+        "kl_divergence": kl,
+        "total_variation": tv,
+        "wasserstein": wass,
+        "sinkhorn_loss": sinkhorn_loss,
+    }
+
+
+def calculate_text_metrics_dict(real_text_list, synthetic_data):
+    real_trimmed = real_text_list[:len(synthetic_data)]
+
+   
+    bert_score = compute_bertscore(real_trimmed, synthetic_data)["f1"]
+    
+    # bert_score = compute_bertscore_pairwise(real_text_list, synthetic_data)["pairwise_f1_mean"]
+
+    bleu = compute_bleu(real_trimmed, synthetic_data)
+    self_bleu = compute_self_bleu(synthetic_data)
+    distinct_2 = compute_distinct_2(synthetic_data)
+
+    real_lengths = get_lengths(real_text_list)
+    synth_lengths = get_lengths(synthetic_data)
+
+    return {
+        "bert_score_f1": bert_score,
+        "bleu": bleu,
+        "self_bleu": self_bleu,
+        "distinct_2": distinct_2,
+        "avg_real_length": sum(real_lengths) / len(real_lengths) if real_lengths else 0,
+        "avg_synth_length": sum(synth_lengths) / len(synth_lengths) if synth_lengths else 0,
+    }
+
+
 def plot_metrics(metrics_history, output_dir):
     """Plot all metrics across epochs and save figures."""
     if not os.path.exists(output_dir):
@@ -441,7 +499,7 @@ def main():
     parser.add_argument("--dataset", type=str, default="yelp",
                        choices=["yelp", "pubmed", "openreview", "mimic"],
                        required=False)
-    parser.add_argument("--wandb_project", type=str, default="synthetic_data_evaluation",
+    parser.add_argument("--wandb_project", type=str, default="synthetic_data_evaluation_check",
                        help="Weights & Biases project name")
     parser.add_argument("--wandb_name", type=str, default=None,
                        help="Weights & Biases run name")

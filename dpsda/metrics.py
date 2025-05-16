@@ -16,15 +16,199 @@ from scipy.linalg import sqrtm
 # calculate inception score with Keras
 from sklearn.metrics import pairwise_distances
 
+from utility_eval.compute_mauve import *
+from utility_eval.precision_recall import *
+
 from bert_score import score
 
-def compute_bertscore(generated_texts, reference_texts):
-    P, R, F1 = score(generated_texts, reference_texts, lang="en", verbose=True)
+# from metric import calculate_all_metrics_dict, calculate_text_metrics_dict
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+from bert_score import score as bert_score
+from collections import Counter
+import numpy as np
+import itertools
+import nltk
+from scipy.stats import entropy, wasserstein_distance
+
+import pandas as pd
+
+nltk.download('punkt')
+nltk.download('punkt_tab')
+
+def get_lengths(texts):
+    return [len(nltk.word_tokenize(t)) for t in texts]
+
+def plot_length_distributions(real_lengths, synth_lengths, filename="length_distribution.png"):
+    plt.figure(figsize=(10, 6))
+    bins = range(0, max(max(real_lengths), max(synth_lengths)) + 5, 1)
+    plt.hist(real_lengths, bins=bins, alpha=0.6, label="Real", color='blue', density=True)
+    plt.hist(synth_lengths, bins=bins, alpha=0.6, label="Synthetic", color='orange', density=True)
+    plt.xlabel("Token Length")
+    plt.ylabel("Density")
+    plt.title("Distribution of Token Lengths")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(filename)
+    plt.close()
+
+def compare_length_distributions(real_lengths, synth_lengths):
+    max_len = max(max(real_lengths), max(synth_lengths))
+    bins = np.arange(0, max_len + 2) - 0.5  # for integer binning
+
+    real_hist, _ = np.histogram(real_lengths, bins=bins, density=True)
+    synth_hist, _ = np.histogram(synth_lengths, bins=bins, density=True)
+
+    # Avoid zero probabilities in KL (add small epsilon)
+    epsilon = 1e-8
+    real_hist += epsilon
+    synth_hist += epsilon
+
+    kl_div = entropy(real_hist, synth_hist)
+    w_dist = wasserstein_distance(real_lengths, synth_lengths)
+
     return {
-        "bertscore_precision": P.mean().item(),
-        "bertscore_recall": R.mean().item(),
-        "bertscore_f1": F1.mean().item(),
+        "length_real_mean": np.mean(real_lengths),
+        "length_synthetic_mean": np.mean(synth_lengths),
+        "length_real_std": np.std(real_lengths),
+        "length_synthetic_std": np.std(synth_lengths),
+        "length_kl_divergence": kl_div,
+        "length_wasserstein_distance": w_dist
     }
+
+def compute_bleu(real_texts, synthetic_texts):
+    smoothie = SmoothingFunction().method4
+    scores = []
+    for ref, hyp in zip(real_texts, synthetic_texts):
+        ref_tokens = nltk.word_tokenize(ref)
+        hyp_tokens = nltk.word_tokenize(hyp)
+        scores.append(sentence_bleu([ref_tokens], hyp_tokens, smoothing_function=smoothie))
+    return np.mean(scores)
+
+def compute_bertscore(real_texts, synthetic_texts, lang='en'):
+    P, R, F1 = bert_score(synthetic_texts, real_texts, lang=lang, verbose=False)
+    return {
+        "precision": P.mean().item(),
+        "recall": R.mean().item(),
+        "f1": F1.mean().item()
+    }
+
+from tqdm import tqdm
+
+def compute_bertscore_pairwise(real_texts, synthetic_texts, lang='en'):
+    all_precisions = []
+    all_recalls = []
+    all_f1s = []
+
+    for syn in tqdm(synthetic_texts, desc="Computing BERTScore pairwise"):
+        # Compare current synthetic sample against all real texts
+        P, R, F1 = bert_score([syn] * len(real_texts), real_texts, lang=lang, verbose=False)
+        all_precisions.append(P.mean().item())
+        all_recalls.append(R.mean().item())
+        all_f1s.append(F1.mean().item())
+
+    return {
+        "pairwise_precision_mean": np.mean(all_precisions),
+        "pairwise_precision_std": np.std(all_precisions),
+        "pairwise_recall_mean": np.mean(all_recalls),
+        "pairwise_recall_std": np.std(all_recalls),
+        "pairwise_f1_mean": np.mean(all_f1s),
+        "pairwise_f1_std": np.std(all_f1s),
+    }
+
+def compute_distinct_2(texts):
+    all_bigrams = list(itertools.chain.from_iterable(
+        zip(tokens, tokens[1:]) for tokens in [nltk.word_tokenize(t) for t in texts]
+    ))
+    total_bigrams = len(all_bigrams)
+    unique_bigrams = len(set(all_bigrams))
+    return unique_bigrams / total_bigrams if total_bigrams > 0 else 0
+
+def compute_self_bleu(texts):
+    smoothie = SmoothingFunction().method4
+    scores = []
+    for i, hyp in enumerate(texts):
+        references = texts[:i] + texts[i+1:]
+        references_tokenized = [nltk.word_tokenize(ref) for ref in references]
+        hyp_tokenized = nltk.word_tokenize(hyp)
+        score = sentence_bleu(references_tokenized, hyp_tokenized, smoothing_function=smoothie)
+        scores.append(score)
+    return np.mean(scores)
+
+
+
+def num_tokens_from_string(string, encoding):
+    """Returns the number of tokens in a text string."""
+    try:
+        num_tokens = len(encoding.encode(string))
+    except:
+        num_tokens = 0
+    return num_tokens
+
+def calculate_all_metrics_dict(synthetic_embeddings, original_embeddings, k=3):
+    import torch
+    from geomloss import SamplesLoss  # See also ImagesLoss, VolumesLoss
+
+    # Compute MAUVE and distribution histograms
+    p_feats = synthetic_embeddings  # feature dimension = 1024
+    q_feats = original_embeddings
+    result = compute_mauve(p_feats, q_feats)
+    p_hist, q_hist = result.p_hist, result.q_hist
+    kl, tv, wass = calculate_other_metrics(p_hist, q_hist)
+
+    # Compute k-NN precision/recall/F1
+    state = knn_precision_recall_features(original_embeddings, synthetic_embeddings, nhood_sizes=[k])
+
+    # Compute Sinkhorn loss (Wasserstein-like distance)
+    p_feats_torch = torch.from_numpy(synthetic_embeddings)
+    q_feats_torch = torch.from_numpy(original_embeddings)
+    loss = SamplesLoss(loss="sinkhorn", p=2, blur=0.05)
+    sinkhorn_loss = loss(p_feats_torch, q_feats_torch).item()
+
+    # Return all metrics in a dictionary
+    return {
+        "precision": state["precision"],
+        "recall": state["recall"],
+        "f1": state["f1"],
+        "mauve": result.mauve,
+        "kl_divergence": kl,
+        "total_variation": tv,
+        "wasserstein": wass,
+        "sinkhorn_loss": sinkhorn_loss,
+    }
+
+
+def calculate_text_metrics_dict(real_text_list, synthetic_data):
+    real_trimmed = real_text_list[:len(synthetic_data)]
+
+   
+    bert_score = compute_bertscore(real_trimmed, synthetic_data)["f1"]
+    
+    # bert_score = compute_bertscore_pairwise(real_text_list, synthetic_data)["pairwise_f1_mean"]
+
+    bleu = compute_bleu(real_trimmed, synthetic_data)
+    self_bleu = compute_self_bleu(synthetic_data)
+    distinct_2 = compute_distinct_2(synthetic_data)
+
+    real_lengths = get_lengths(real_text_list)
+    synth_lengths = get_lengths(synthetic_data)
+
+    return {
+        "bert_score_f1": bert_score,
+        "bleu": bleu,
+        "self_bleu": self_bleu,
+        "distinct_2": distinct_2,
+        "avg_real_length": sum(real_lengths) / len(real_lengths) if real_lengths else 0,
+        "avg_synth_length": sum(synth_lengths) / len(synth_lengths) if synth_lengths else 0,
+    }
+
+def compute_bertscore(real_texts, synthetic_texts, lang='en'):
+    P, R, F1 = bert_score(synthetic_texts, real_texts, lang=lang, verbose=False)
+    return {
+        "precision": P.mean().item(),
+        "recall": R.mean().item(),
+        "f1": F1.mean().item()
+    }
+
 
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -129,6 +313,9 @@ def compare_text_sets(synthetic_texts, real_texts, emb_synth, emb_real):
     
     # 4. MMD
     metrics.update(compute_mmd(emb_synth, emb_real))
+
+    metrics.update(calculate_text_metrics_dict(real_texts, synthetic_texts))
+    metrics.update(calculate_all_metrics_dict(emb_synth, emb_real))
     
     return metrics
 

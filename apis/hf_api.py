@@ -6,30 +6,46 @@ from .api import API
 import transformers
 import random
 from .utils import set_seed, get_subcategories, ALL_styles, ALL_OPENREVIEW_styles, ALL_PUBMED_styles, DISCHARGE_LETTER_STYLES, DISCHARGE_REWRITE_PROMPTS
-from .prompts import INSTRUCTION_TEMPLATES, SPECIALTIES, DOC_TYPES, STYLES, LABELS
+from .prompts import INSTRUCTION_TEMPLATES, SPECIALTIES, DOC_TYPES, STYLES, LABELS, INSTRUCTION_TEMPLATES_WITH_SUMMARIES
 import re
 import collections
 
 import os
 import ssl
 import certifi
+import pandas as pd
 
 os.environ["SSL_CERT_FILE"] = certifi.where()
 
 import ollama
 import requests
 
-def generate_prompts(num_prompts: int = 15):
+def generate_prompts(df, num_prompts: int = 15, summary_path: str = "data/mimic/summarized_texts.csv"):
     prompts = []
+    
+    try:
+        df = pd.read_csv(summary_path)
+        summaries = df["summary"].dropna().tolist()
+    except Exception as e:
+        print(f"Warning: Could not load summaries from {summary_path} — {e}")
+        summaries = []
+
     for _ in range(num_prompts):
         doc_type = random.choice(DOC_TYPES)
         specialty = random.choice(SPECIALTIES)
         style = random.choice(STYLES)
-        selected_labels = random.sample(LABELS, random.randint(3, 6))
-        labels_str = ", ".join(selected_labels)
-        
-        template = random.choice(INSTRUCTION_TEMPLATES)
-        prompt = template(doc_type, specialty, style, labels_str)
+        labels_str = LABELS  
+
+        use_summary = random.random() < 0.7 
+
+        if use_summary and len(summaries) > 0:
+            # print("\n ____USE summaries____ ", len(summaries), "\n")
+            summary = random.choice(summaries)
+            template = random.choice(INSTRUCTION_TEMPLATES_WITH_SUMMARIES)
+            prompt = template(doc_type, specialty, style, labels_str, summary)
+        else:
+            template = random.choice(INSTRUCTION_TEMPLATES)
+            prompt = template(doc_type, specialty, style, labels_str)
         
         prompts.append(prompt.strip())
     
@@ -42,7 +58,7 @@ class HFAPI(API):
                  output_dir, seed, mlm_probability,
                  length, temperature, top_k, top_p, repetition_penalty, do_sample, fp16, no_cuda,
                  random_sampling_batch_size, num_beams, dry_run,
-                 variation_batch_size,
+                 variation_batch_size, percentage_of_summaries,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -74,6 +90,8 @@ class HFAPI(API):
                 "openreview")
 
         model_name_or_path = self.model_type
+
+        self.percentage_of_summaries = percentage_of_summaries
 
         if model_name_or_path=="gpt2":
             self.use_ollama = False
@@ -173,6 +191,8 @@ class HFAPI(API):
         )
         parser.add_argument("--no_cuda", action="store_true",
                             help="Avoid using CUDA when available")
+        
+        parser.add_argument("--percentage_of_summaries", type=float, default=0.7)
 
         return parser
 

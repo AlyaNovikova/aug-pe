@@ -13,11 +13,12 @@ echo generating $num_samples samples
 epochs=10
 word_var_scale=0
 select_syn_mode=rank
-random_str="_ollama_rephrase_pr_01"
+random_str="_ollama_summary_01"
+percentage_of_summaries=0.5
 # model_type="gpt2"
-model_type="mistral"
+# model_type="mistral"
 # model_type="deepseek-v2.5"
-# model_type="aravhawk/llama4"
+model_type="aravhawk/llama4"
 # model_type="ingu627/llama4-scout-q4:109b"
 # model_type="llama3.3"
 # model_type="deepseek-r1:70b"
@@ -40,7 +41,7 @@ elif [ "$model_type" = "gpt2" ]; then
 else
     batch_size=16
 fi
-result_folder="result/mimic/${model_type}_${feat_ext}/${num_samples}_n${noise}_L${L}_initL${init_L}_var${lookahead_degree}_${var_type}_${select_syn_mode}_len${length}var${word_var_scale}_t${temperature}_${random_str}"
+result_folder="result/mimic/${model_type}_${feat_ext}/${percentage_of_summaries}_${num_samples}_n${noise}_L${L}_initL${init_L}_var${lookahead_degree}_${var_type}_${select_syn_mode}_len${length}var${word_var_scale}_t${temperature}_${random_str}"
 
 
 ### load datacheckpoint 
@@ -67,6 +68,7 @@ python main.py ${args} ${data_checkpoint_args} \
 --api ${api} \
 --noise ${noise} \
 --model_type ${model_type} \
+--percentage_of_summaries ${percentage_of_summaries} \
 --do_sample  \
 --length ${length} \
 --random_sampling_batch_size ${batch_size} \
