@@ -1,10 +1,5 @@
-
-
-"""k-NN precision and recall."""
-
 import numpy as np
 from time import time
-# example of calculating the frechet inception distance
 
 from numpy import cov
 from numpy import trace
@@ -12,8 +7,6 @@ from numpy import iscomplexobj
 from numpy.random import random
 from scipy.linalg import sqrtm
 
-
-# calculate inception score with Keras
 from sklearn.metrics import pairwise_distances
 
 from utility_eval.compute_mauve import *
@@ -21,33 +14,70 @@ from utility_eval.precision_recall import *
 
 from bert_score import score
 
-# from metric import calculate_all_metrics_dict, calculate_text_metrics_dict
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from bert_score import score as bert_score
 from collections import Counter
 import numpy as np
 import itertools
 import nltk
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from scipy.stats import entropy, wasserstein_distance
 
+import wandb
 import pandas as pd
 
-nltk.download('punkt')
-nltk.download('punkt_tab')
+import spacy
+import itertools
+import numpy as np
 
-def get_lengths(texts):
-    return [len(nltk.word_tokenize(t)) for t in texts]
+nltk.download('punkt', force=True)  
+
+print(nltk.data.path)
+
+# Tokenizer factory function
+def get_tokenizer(language='english', backend='nltk'):
+    if backend == 'nltk':
+        nltk.download('punkt', quiet=True)
+        # nltk.download('punkt_tab')
+
+        def tokenizer(text):
+            return nltk.word_tokenize(text, language=language)
+        return tokenizer
+
+    elif backend == 'spacy':
+        model_map = {
+            'en': 'en_core_web_sm',
+            'fr': 'fr_core_news_sm',
+            'sci': 'en_core_sci_sm',
+        }
+        if language not in model_map:
+            raise ValueError(f"Unsupported language '{language}' for spaCy.")
+        nlp = spacy.load(model_map[language])
+        def tokenizer(text):
+            return [token.text for token in nlp(text)]
+        return tokenizer
+
+    else:
+        raise ValueError("Unsupported backend. Choose 'nltk' or 'spacy'.")
+
+
+def get_lengths(texts, tokenizer=None):
+    if tokenizer is None:
+        tokenizer = get_tokenizer()
+    return [len(tokenizer(t)) for t in texts]
 
 def plot_length_distributions(real_lengths, synth_lengths, filename="length_distribution.png"):
     plt.figure(figsize=(10, 6))
     bins = range(0, max(max(real_lengths), max(synth_lengths)) + 5, 1)
-    plt.hist(real_lengths, bins=bins, alpha=0.6, label="Real", color='blue', density=True)
-    plt.hist(synth_lengths, bins=bins, alpha=0.6, label="Synthetic", color='orange', density=True)
+    plt.hist(real_lengths, bins=bins, alpha=0.6, label="Real", color='blue',
+             density=True, edgecolor='black', rwidth=0.9)
+    plt.hist(synth_lengths, bins=bins, alpha=0.6, label="Synthetic", color='orange',
+             density=True, edgecolor='black', rwidth=0.9)
     plt.xlabel("Token Length")
     plt.ylabel("Density")
     plt.title("Distribution of Token Lengths")
     plt.legend()
     plt.grid(True)
+    plt.tight_layout()
     plt.savefig(filename)
     plt.close()
 
@@ -67,6 +97,8 @@ def compare_length_distributions(real_lengths, synth_lengths):
     w_dist = wasserstein_distance(real_lengths, synth_lengths)
 
     return {
+        "length_mean_diff": abs(np.mean(real_lengths) - np.mean(synth_lengths)),
+
         "length_real_mean": np.mean(real_lengths),
         "length_synthetic_mean": np.mean(synth_lengths),
         "length_real_std": np.std(real_lengths),
@@ -75,24 +107,29 @@ def compare_length_distributions(real_lengths, synth_lengths):
         "length_wasserstein_distance": w_dist
     }
 
-def compute_bleu(real_texts, synthetic_texts):
+def compute_bleu(real_texts, synthetic_texts, tokenizer):
     smoothie = SmoothingFunction().method4
     scores = []
     for ref, hyp in zip(real_texts, synthetic_texts):
-        ref_tokens = nltk.word_tokenize(ref)
-        hyp_tokens = nltk.word_tokenize(hyp)
+        ref_tokens = tokenizer(ref)
+        hyp_tokens = tokenizer(hyp)
         scores.append(sentence_bleu([ref_tokens], hyp_tokens, smoothing_function=smoothie))
     return np.mean(scores)
 
+from tqdm import tqdm
+
+
 def compute_bertscore(real_texts, synthetic_texts, lang='en'):
-    P, R, F1 = bert_score(synthetic_texts, real_texts, lang=lang, verbose=False)
+    if len(real_texts) != len(synthetic_texts):
+        real_text_list = real_texts[:len(synthetic_data)]
+    else:
+        real_text_list = real_texts
+    P, R, F1 = bert_score(synthetic_texts, real_text_list, lang=lang, verbose=False)
     return {
         "precision": P.mean().item(),
         "recall": R.mean().item(),
         "f1": F1.mean().item()
     }
-
-from tqdm import tqdm
 
 def compute_bertscore_pairwise(real_texts, synthetic_texts, lang='en'):
     all_precisions = []
@@ -115,36 +152,87 @@ def compute_bertscore_pairwise(real_texts, synthetic_texts, lang='en'):
         "pairwise_f1_std": np.std(all_f1s),
     }
 
-def compute_distinct_2(texts):
+def compute_distinct_2(texts, tokenizer):
     all_bigrams = list(itertools.chain.from_iterable(
-        zip(tokens, tokens[1:]) for tokens in [nltk.word_tokenize(t) for t in texts]
+        zip(tokens, tokens[1:]) for tokens in [tokenizer(t) for t in texts]
     ))
     total_bigrams = len(all_bigrams)
     unique_bigrams = len(set(all_bigrams))
     return unique_bigrams / total_bigrams if total_bigrams > 0 else 0
 
-def compute_self_bleu(texts):
+def compute_self_bleu(texts, tokenizer):
     smoothie = SmoothingFunction().method4
     scores = []
     for i, hyp in enumerate(texts):
         references = texts[:i] + texts[i+1:]
-        references_tokenized = [nltk.word_tokenize(ref) for ref in references]
-        hyp_tokenized = nltk.word_tokenize(hyp)
+        references_tokenized = [tokenizer(ref) for ref in references]
+        hyp_tokenized = tokenizer(hyp)
         score = sentence_bleu(references_tokenized, hyp_tokenized, smoothing_function=smoothie)
         scores.append(score)
     return np.mean(scores)
 
+from rouge_score import rouge_scorer
+
+def compute_rouge_l(real_texts, synthetic_texts):
+    scorer = rouge_scorer.RougeScorer(['rougeL'], use_stemmer=True)
+    scores = []
+
+    for ref, hyp in zip(real_texts, synthetic_texts):
+        score = scorer.score(ref, hyp)['rougeL'].fmeasure
+        scores.append(score)
+
+    return np.mean(scores)
+
+def vocabulary_overlap(texts_a, texts_b, tokenizer):
+    words_a = set(word.lower() for text in texts_a for word in tokenizer(text))
+    words_b = set(word.lower() for text in texts_b for word in tokenizer(text))
+    
+    intersection = words_a & words_b
+    union = words_a | words_b
+    
+    return {
+        "jaccard_similarity": len(intersection) / len(union) if union else 0,
+        # "vocab_a_size": len(words_a),
+        # "vocab_b_size": len(words_b),
+    }
 
 
 def num_tokens_from_string(string, encoding):
-    """Returns the number of tokens in a text string."""
     try:
         num_tokens = len(encoding.encode(string))
     except:
         num_tokens = 0
     return num_tokens
 
-def calculate_all_metrics_dict(synthetic_embeddings, original_embeddings, k=3):
+def calculate_all_metrics(original_embeddings, synthetic_embeddings, k=3):
+    method_name = ""
+    p_feats = synthetic_embeddings  # feature dimension = 1024
+    q_feats = original_embeddings
+    result = compute_mauve(p_feats, q_feats)
+    print("MAUVE: ", result.mauve)
+    p_hist, q_hist = result.p_hist, result.q_hist
+    kl, tv, wass = calculate_other_metrics(p_hist, q_hist)
+
+    state = knn_precision_recall_features(
+        original_embeddings, synthetic_embeddings, nhood_sizes=[k])
+    print(state)
+
+    from geomloss import SamplesLoss  # See also ImagesLoss, VolumesLoss
+
+    # feature dimension = 1024
+    p_feats = torch.from_numpy(synthetic_embeddings)
+    q_feats = torch.from_numpy(original_embeddings)
+
+    # Define a Sinkhorn (~Wasserstein) loss between sampled measures
+    loss = SamplesLoss(loss="sinkhorn", p=2, blur=.05)
+
+    # By default, use constant weights = 1/number of samples
+    sinkhorn_loss = loss(p_feats, q_feats).item()
+    print("Sinkhorn loss: %.3f" % sinkhorn_loss)
+
+    return state['precision'], state['recall'], state['f1'], result.mauve, kl, tv, wass, sinkhorn_loss
+
+def calculate_all_metrics_dict(original_embeddings, synthetic_embeddings, k=3):
     import torch
     from geomloss import SamplesLoss  # See also ImagesLoss, VolumesLoss
 
@@ -164,6 +252,8 @@ def calculate_all_metrics_dict(synthetic_embeddings, original_embeddings, k=3):
     loss = SamplesLoss(loss="sinkhorn", p=2, blur=0.05)
     sinkhorn_loss = loss(p_feats_torch, q_feats_torch).item()
 
+    fid = calculate_fid(original_embeddings, synthetic_embeddings)
+
     # Return all metrics in a dictionary
     return {
         "precision": state["precision"],
@@ -171,151 +261,102 @@ def calculate_all_metrics_dict(synthetic_embeddings, original_embeddings, k=3):
         "f1": state["f1"],
         "mauve": result.mauve,
         "kl_divergence": kl,
-        "total_variation": tv,
-        "wasserstein": wass,
-        "sinkhorn_loss": sinkhorn_loss,
+        "FID": fid,
+        # "total_variation": tv,
+        # "wasserstein": wass,
+        # "sinkhorn_loss": sinkhorn_loss,
     }
 
 
-def calculate_text_metrics_dict(real_text_list, synthetic_data):
+def calculate_text_metrics_dict(real_text_list, synthetic_data, tokenizer):
     real_trimmed = real_text_list[:len(synthetic_data)]
-
    
     bert_score = compute_bertscore(real_trimmed, synthetic_data)["f1"]
     
     # bert_score = compute_bertscore_pairwise(real_text_list, synthetic_data)["pairwise_f1_mean"]
 
-    bleu = compute_bleu(real_trimmed, synthetic_data)
-    self_bleu = compute_self_bleu(synthetic_data)
-    distinct_2 = compute_distinct_2(synthetic_data)
+    bleu = compute_bleu(real_trimmed, synthetic_data, tokenizer)
+    self_bleu = compute_self_bleu(synthetic_data, tokenizer)
+    distinct_2 = compute_distinct_2(synthetic_data, tokenizer)
 
-    real_lengths = get_lengths(real_text_list)
-    synth_lengths = get_lengths(synthetic_data)
+    real_lengths = get_lengths(real_text_list, tokenizer)
+    synth_lengths = get_lengths(synthetic_data, tokenizer)
+
+    length_dict = compare_length_distributions(real_lengths, synth_lengths)
+
+    rouge = compute_rouge_l(real_text_list, synthetic_data)
 
     return {
         "bert_score_f1": bert_score,
         "bleu": bleu,
         "self_bleu": self_bleu,
         "distinct_2": distinct_2,
-        "avg_real_length": sum(real_lengths) / len(real_lengths) if real_lengths else 0,
-        "avg_synth_length": sum(synth_lengths) / len(synth_lengths) if synth_lengths else 0,
-    }
-
-def compute_bertscore(real_texts, synthetic_texts, lang='en'):
-    P, R, F1 = bert_score(synthetic_texts, real_texts, lang=lang, verbose=False)
-    return {
-        "precision": P.mean().item(),
-        "recall": R.mean().item(),
-        "f1": F1.mean().item()
+        "length_mean_diff": length_dict["length_mean_diff"],
+        "Rouge-L": rouge,
     }
 
 
-from sklearn.metrics.pairwise import cosine_similarity
 
-def average_cosine_similarity(emb_a, emb_b):
-    sim_matrix = cosine_similarity(emb_a, emb_b)
+def plot_metrics(metrics_history, output_dir):
+    """Plot all metrics across epochs and save figures."""
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    epochs = sorted(metrics_history.keys())
+    metrics_names = list(metrics_history[epochs[0]].keys())
     
-    return {
-        "avg_cosine_sim": sim_matrix.mean(),
-        "avg_cosine_sim_a_to_b": sim_matrix.mean(axis=1).mean(), 
-        "avg_cosine_sim_b_to_a": sim_matrix.mean(axis=0).mean(),  # Avg for each B vs all A
-    }
-
-def vocabulary_overlap(texts_a, texts_b):
-    words_a = set(" ".join(texts_a).split())
-    words_b = set(" ".join(texts_b).split())
+    # Log each metric with epoch as step
+    for epoch in epochs:
+        metrics_to_log = {"epoch": epoch}
+        for metric in metrics_names:
+            metrics_to_log[f"metrics/{metric}"] = metrics_history[epoch][metric]
+        wandb.log(metrics_to_log)
     
-    intersection = words_a & words_b
-    union = words_a | words_b
+    # # Plot each metric separately
+    # for metric in metrics_names:
+    #     plt.figure(figsize=(10, 6))
+    #     values = [metrics_history[e][metric] for e in epochs]
+    #     plt.plot(epochs, values, marker='o')
+    #     plt.title(f'{metric} across epochs')
+    #     plt.xlabel('Epoch')
+    #     plt.ylabel(metric)
+    #     plt.grid(True)
+    #     plot_path = os.path.join(output_dir, f'{metric}.png')
+    #     plt.savefig(plot_path)
+    #     plt.close()
+        
+    #     # Log to wandb
+    #     wandb.log({f"plots/{metric}": wandb.Image(plot_path)})
     
-    return {
-        "jaccard_similarity": len(intersection) / len(union) if union else 0,
-        "vocab_a_size": len(words_a),
-        "vocab_b_size": len(words_b),
-    }
-
-from sklearn.feature_extraction.text import TfidfVectorizer
-from scipy.spatial import distance
-
-def word_distribution_similarity(texts_a, texts_b):
-    vectorizer = TfidfVectorizer().fit(texts_a + texts_b)
+    # # Plot all metrics together (normalized)
+    # plt.figure(figsize=(12, 8))
+    # for metric in metrics_names:
+    #     values = [metrics_history[e][metric] for e in epochs]
+    #     # Normalize for visualization
+    #     values = (values - np.min(values)) / (np.max(values) - np.min(values) + 1e-8)
+    #     plt.plot(epochs, values, marker='o', label=metric)
+    # plt.title('All metrics across epochs (normalized)')
+    # plt.xlabel('Epoch')
+    # plt.ylabel('Normalized value')
+    # plt.legend()
+    # plt.grid(True)
+    # combined_path = os.path.join(output_dir, 'all_metrics_normalized.png')
+    # plt.savefig(combined_path)
+    # plt.close()
     
-    # Convert sparse matrices to dense 1D arrays (average TF-IDF per word)
-    tfidf_a = np.asarray(vectorizer.transform(texts_a).mean(axis=0)).flatten()
-    tfidf_b = np.asarray(vectorizer.transform(texts_b).mean(axis=0)).flatten()
-    
-    # Compute cosine similarity (1 - cosine distance)
-    cos_sim = 1 - distance.cosine(tfidf_a, tfidf_b)
-    return {
-        "tfidf_cosine_sim": cos_sim,
-        "tfidf_cosine_distance": 1 - cos_sim,  # For consistency
-    }
+    # # Log to wandb
+    # wandb.log({"plots/all_metrics_normalized": wandb.Image(combined_path)})
 
-import numpy as np
-from sklearn.metrics.pairwise import polynomial_kernel
 
-def compute_mmd(embeddings_a, embeddings_b):
-    K_aa = polynomial_kernel(embeddings_a, embeddings_a)
-    K_bb = polynomial_kernel(embeddings_b, embeddings_b)
-    K_ab = polynomial_kernel(embeddings_a, embeddings_b)
-    
-    mmd = K_aa.mean() + K_bb.mean() - 2 * K_ab.mean()
-    return {"mmd": mmd}
 
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-
-def compute_self_bleu(texts):
-    scores = []
-    smoothie = SmoothingFunction().method4
-    for i in range(len(texts)):
-        refs = [texts[j] for j in range(len(texts)) if j != i]
-        scores.append(sentence_bleu(refs, texts[i], smoothing_function=smoothie))
-    return {"self_bleu": sum(scores) / len(scores)}
-
-from collections import Counter
-
-def compute_diversity(texts, n_gram=2):
-    n_grams = []
-    for text in texts:
-        tokens = text.split()
-        n_grams.extend(zip(*[tokens[i:] for i in range(n_gram)]))
-    
-    unique_ngrams = set(n_grams)
-    diversity = len(unique_ngrams) / len(n_grams) if n_grams else 0
-    return {"diversity": diversity}
-
-# def evaluate_text_metrics(synthetic_texts, real_texts):
-#     metrics = {}
-    
-#     # Semantic Quality
-#     metrics.update(compute_bertscore(synthetic_texts, real_texts))
-    
-#     # Diversity
-#     metrics.update(compute_diversity(synthetic_texts, n_gram=2))
-#     metrics.update(compute_self_bleu(synthetic_texts))
-    
-#     # Distributional Similarity (Optional)
-#     metrics.update(compute_mmd(real_texts, synthetic_texts))
-    
-#     return metrics
-
-def compare_text_sets(synthetic_texts, real_texts, emb_synth, emb_real):
+def compare_text_sets(real_texts, synthetic_texts, emb_real, emb_synth):
     metrics = {}
-    
-    # 1. Semantic similarity
-    metrics.update(average_cosine_similarity(emb_synth, emb_real))
-    
-    # 2. Vocabulary overlap
-    metrics.update(vocabulary_overlap(synthetic_texts, real_texts))
-    
-    # 3. Word frequency (TF-IDF)
-    metrics.update(word_distribution_similarity(synthetic_texts, real_texts))
-    
-    # 4. MMD
-    metrics.update(compute_mmd(emb_synth, emb_real))
 
-    metrics.update(calculate_text_metrics_dict(real_texts, synthetic_texts))
-    metrics.update(calculate_all_metrics_dict(emb_synth, emb_real))
+    tokenizer = get_tokenizer()
+
+    metrics.update(vocabulary_overlap(real_texts, synthetic_texts, tokenizer))
+    metrics.update(calculate_text_metrics_dict(real_texts, synthetic_texts, tokenizer))
+    metrics.update(calculate_all_metrics_dict(emb_real, emb_synth))
     
     return metrics
 
@@ -459,58 +500,58 @@ class ManifoldEstimator():
 
 # ----------------------------------------------------------------------------
 
-def knn_precision_recall_features(ref_features, eval_features, nhood_sizes=[3],
-                                  row_batch_size=10000, col_batch_size=50000, num_gpus=1, debug=True):
-    """Calculates k-NN precision and recall for two sets of feature vectors.
+# def knn_precision_recall_features(ref_features, eval_features, nhood_sizes=[3],
+#                                   row_batch_size=10000, col_batch_size=50000, num_gpus=1, debug=True):
+#     """Calculates k-NN precision and recall for two sets of feature vectors.
 
-        Args:
-            ref_features (np.array/tf.Tensor): Feature vectors of reference images.
-            eval_features (np.array/tf.Tensor): Feature vectors of generated images.
-            nhood_sizes (list): Number of neighbors used to estimate the manifold.
-            row_batch_size (int): Row batch size to compute pairwise distances
-                (parameter to trade-off between memory usage and performance).
-            col_batch_size (int): Column batch size to compute pairwise distances.
-            num_gpus (int): Number of GPUs used to evaluate precision and recall.
+#         Args:
+#             ref_features (np.array/tf.Tensor): Feature vectors of reference images.
+#             eval_features (np.array/tf.Tensor): Feature vectors of generated images.
+#             nhood_sizes (list): Number of neighbors used to estimate the manifold.
+#             row_batch_size (int): Row batch size to compute pairwise distances
+#                 (parameter to trade-off between memory usage and performance).
+#             col_batch_size (int): Column batch size to compute pairwise distances.
+#             num_gpus (int): Number of GPUs used to evaluate precision and recall.
 
-        Returns:
-            State (dict): Dict that contains precision and recall calculated from
-            ref_features and eval_features.
-    """
-    state = dict()
-    if debug:
-        state['precision'] = 0
-        state['recall'] = 0
-        state['f1'] = 0
-        return state
+#         Returns:
+#             State (dict): Dict that contains precision and recall calculated from
+#             ref_features and eval_features.
+#     """
+#     state = dict()
+#     if debug:
+#         state['precision'] = 0
+#         state['recall'] = 0
+#         state['f1'] = 0
+#         return state
 
-    num_images = ref_features.shape[0]
-    num_features = ref_features.shape[1]
+#     num_images = ref_features.shape[0]
+#     num_features = ref_features.shape[1]
 
-    # Initialize DistanceBlock and ManifoldEstimators.
-    distance_block = DistanceBlock(num_features, num_gpus)
-    ref_manifold = ManifoldEstimator(
-        distance_block, ref_features, row_batch_size, col_batch_size, nhood_sizes)
-    eval_manifold = ManifoldEstimator(
-        distance_block, eval_features, row_batch_size, col_batch_size, nhood_sizes)
+#     # Initialize DistanceBlock and ManifoldEstimators.
+#     distance_block = DistanceBlock(num_features, num_gpus)
+#     ref_manifold = ManifoldEstimator(
+#         distance_block, ref_features, row_batch_size, col_batch_size, nhood_sizes)
+#     eval_manifold = ManifoldEstimator(
+#         distance_block, eval_features, row_batch_size, col_batch_size, nhood_sizes)
 
-    # Evaluate precision and recall using k-nearest neighbors.
-    print('Evaluating k-NN precision and recall with %i samples...' % num_images)
-    start = time()
+#     # Evaluate precision and recall using k-nearest neighbors.
+#     print('Evaluating k-NN precision and recall with %i samples...' % num_images)
+#     start = time()
 
-    # Precision: How many points from eval_features are in ref_features manifold.
-    precision = ref_manifold.evaluate(eval_features)
-    state['precision'] = precision.mean(axis=0).item()
+#     # Precision: How many points from eval_features are in ref_features manifold.
+#     precision = ref_manifold.evaluate(eval_features)
+#     state['precision'] = precision.mean(axis=0).item()
 
-    # Recall: How many points from ref_features are in eval_features manifold.
-    recall = eval_manifold.evaluate(ref_features)
-    state['recall'] = recall.mean(axis=0).item()
+#     # Recall: How many points from ref_features are in eval_features manifold.
+#     recall = eval_manifold.evaluate(ref_features)
+#     state['recall'] = recall.mean(axis=0).item()
 
-    state['f1'] = 2 * (state['precision'] * state['recall']) / \
-        (state['precision']+state['recall'])
+#     state['f1'] = 2 * (state['precision'] * state['recall']) / \
+#         (state['precision']+state['recall'])
 
-    print('Evaluated k-NN precision and recall in: %gs' % (time() - start))
+#     print('Evaluated k-NN precision and recall in: %gs' % (time() - start))
 
-    return state
+#     return state
 
 
 def knn_precision_recall_embeddings(ref_features, eval_features, k=3):

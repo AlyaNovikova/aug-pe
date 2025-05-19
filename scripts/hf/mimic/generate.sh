@@ -1,11 +1,12 @@
 mlm_prob=0.6
 var_type="mimic_rephrase_tone"
-feat_ext="sentence-t5-base"
+# feat_ext="stsb-roberta-base-v2"
+feat_ext="pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb"
 length=1024
 temperature=1.0
-num_seed_samples=10
+num_seed_samples=5
 lookahead_degree=0
-k=6 # number of variations
+k=2 # number of variations
 L=$((k+1))
 init_L=${L}
 num_samples=$((L*num_seed_samples))
@@ -60,6 +61,7 @@ done
 echo load data from ${data_checkpoint_args} ${args}
 
 pip install bert_score
+pip install rouge-score
 
 ### run PE
 python main.py ${args} ${data_checkpoint_args} \
@@ -89,5 +91,5 @@ python main.py ${args} ${data_checkpoint_args} \
 --variation_type ${var_type} \
 --result_folder ${result_folder} \
 --log_online \
-# --train_data_embeddings_file "result/embeddings/${feat_ext}/mimic_train_all.embeddings.npz" 
+--train_data_embeddings_file "result/embeddings/${feat_ext}/mimic_train_all.embeddings.npz" 
 

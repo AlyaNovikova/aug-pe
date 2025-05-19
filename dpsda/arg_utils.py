@@ -72,9 +72,9 @@ def parse_args():
         '--feature_extractor',
         type=str,
         default='all-mpnet-base-v2',
-        choices=["sentence-t5-xl", "sentence-t5-large",  "sentence-t5-base",
-                 "all-MiniLM-L6-v2", "paraphrase-MiniLM-L6-v2", "all-mpnet-base-v2", "stsb-roberta-base-v2",
-                 "roberta-large-nli-stsb-mean-tokens", "distilbert-base-nli-stsb-mean-tokens", 'text-embedding-ada-002'],
+        # choices=["sentence-t5-xl", "sentence-t5-large",  "sentence-t5-base",
+        #          "all-MiniLM-L6-v2", "paraphrase-MiniLM-L6-v2", "all-mpnet-base-v2", "stsb-roberta-base-v2",
+        #          "roberta-large-nli-stsb-mean-tokens", "distilbert-base-nli-stsb-mean-tokens", 'text-embedding-ada-002'],
         help='Which image feature extractor to use')
 
     parser.add_argument(

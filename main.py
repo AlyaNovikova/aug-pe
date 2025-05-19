@@ -110,10 +110,11 @@ def main():
         )
         # print("-----------------------------222-\n\n", synthetic_features, "------------------------------\n\n")
 
-        compute_fid(synthetic_features, all_private_features, args.feature_extractor,
-                    folder=args.result_folder,  step=start_t-1, log_online=args.log_online)
-        log_metrics(seed_syn_samples, all_private_samples, 
-                        synthetic_features, all_private_features,
+        # compute_fid(synthetic_features, all_private_features, args.feature_extractor,
+        #             folder=args.result_folder,  step=start_t-1, log_online=args.log_online)
+        
+        log_metrics(all_private_samples, seed_syn_samples,  
+                    all_private_features, synthetic_features,
                         step=start_t-1, log_online=args.log_online)
 
     if args.init_combine_divide_L > 1:
@@ -342,10 +343,10 @@ def main():
             )
             # print("-----------------------------444-\n\n", synthetic_features, "------------------------------\n\n")
 
-            compute_fid(synthetic_features, all_private_features, args.feature_extractor,
-                        folder=args.result_folder,  step=t, log_online=args.log_online)
-            log_metrics(all_selected_samples, all_private_samples, 
-                        synthetic_features, all_private_features,
+            # compute_fid(synthetic_features, all_private_features, args.feature_extractor,
+            #             folder=args.result_folder,  step=t, log_online=args.log_online)
+            log_metrics(all_private_samples, all_selected_samples, 
+                        all_private_features, synthetic_features,
                         step=t, log_online=args.log_online)
 
                         

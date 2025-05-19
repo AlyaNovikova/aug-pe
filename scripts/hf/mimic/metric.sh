@@ -5,6 +5,9 @@ model_folder="mistral_small/70_n0_L7_initL7_var0_mimic_rephrase_tone_rank_len102
 result_folder="result/mimic_play_metric/${model_folder}"
 min_token_threshold=50
 
+pip install bert_score
+pip install rouge-score
+
 CUDA_VISIBLE_DEVICES=0 python metric.py \
     --private_data_size 100 \
     --synthetic_folder ${result_folder} \

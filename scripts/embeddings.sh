@@ -16,7 +16,7 @@ case $1 in
     ;;
   --mimic)
     # export CUDA_VISIBLE_DEVICES=0
-    python pre_comp_emb.py --dataset mimic --model_name_or_path 'sentence-t5-base'
+    python pre_comp_emb.py --dataset mimic --model_name_or_path 'pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb'
     ;;
   --yelp)
     python pre_comp_emb.py --dataset yelp --model_name_or_path 'stsb-roberta-base-v2'

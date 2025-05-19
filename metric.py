@@ -8,6 +8,8 @@ from scipy.linalg import sqrtm
 import os
 import matplotlib.pyplot as plt
 import wandb
+from collections import defaultdict
+import pandas as pd
 
 # calculate inception score with Keras
 import torch
@@ -17,278 +19,16 @@ from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 from datasets import load_dataset
 
-from dpsda.metrics import calculate_fid
+from dpsda.metrics import calculate_fid, num_tokens_from_string, get_lengths, plot_length_distributions, plot_metrics
 
 from dpsda.logging import *
 from utility_eval.compute_mauve import *
 from utility_eval.precision_recall import *
-from apis.utils import set_seed
+from apis.utils import set_seed 
 
 import time
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
-
-
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-from bert_score import score as bert_score
-from collections import Counter
-import numpy as np
-import itertools
-import nltk
-from scipy.stats import entropy, wasserstein_distance
-
-import pandas as pd
-
-nltk.download('punkt')
-nltk.download('punkt_tab')
-
-def get_lengths(texts):
-    return [len(nltk.word_tokenize(t)) for t in texts]
-
-def plot_length_distributions(real_lengths, synth_lengths, filename="length_distribution.png"):
-    plt.figure(figsize=(10, 6))
-    bins = range(0, max(max(real_lengths), max(synth_lengths)) + 5, 1)
-    plt.hist(real_lengths, bins=bins, alpha=0.6, label="Real", color='blue', density=True)
-    plt.hist(synth_lengths, bins=bins, alpha=0.6, label="Synthetic", color='orange', density=True)
-    plt.xlabel("Token Length")
-    plt.ylabel("Density")
-    plt.title("Distribution of Token Lengths")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(filename)
-    plt.close()
-
-def compare_length_distributions(real_lengths, synth_lengths):
-    max_len = max(max(real_lengths), max(synth_lengths))
-    bins = np.arange(0, max_len + 2) - 0.5  # for integer binning
-
-    real_hist, _ = np.histogram(real_lengths, bins=bins, density=True)
-    synth_hist, _ = np.histogram(synth_lengths, bins=bins, density=True)
-
-    # Avoid zero probabilities in KL (add small epsilon)
-    epsilon = 1e-8
-    real_hist += epsilon
-    synth_hist += epsilon
-
-    kl_div = entropy(real_hist, synth_hist)
-    w_dist = wasserstein_distance(real_lengths, synth_lengths)
-
-    return {
-        "length_real_mean": np.mean(real_lengths),
-        "length_synthetic_mean": np.mean(synth_lengths),
-        "length_real_std": np.std(real_lengths),
-        "length_synthetic_std": np.std(synth_lengths),
-        "length_kl_divergence": kl_div,
-        "length_wasserstein_distance": w_dist
-    }
-
-def compute_bleu(real_texts, synthetic_texts):
-    smoothie = SmoothingFunction().method4
-    scores = []
-    for ref, hyp in zip(real_texts, synthetic_texts):
-        ref_tokens = nltk.word_tokenize(ref)
-        hyp_tokens = nltk.word_tokenize(hyp)
-        scores.append(sentence_bleu([ref_tokens], hyp_tokens, smoothing_function=smoothie))
-    return np.mean(scores)
-
-def compute_bertscore(real_texts, synthetic_texts, lang='en'):
-    P, R, F1 = bert_score(synthetic_texts, real_texts, lang=lang, verbose=False)
-    return {
-        "precision": P.mean().item(),
-        "recall": R.mean().item(),
-        "f1": F1.mean().item()
-    }
-
-from tqdm import tqdm
-
-def compute_bertscore_pairwise(real_texts, synthetic_texts, lang='en'):
-    all_precisions = []
-    all_recalls = []
-    all_f1s = []
-
-    for syn in tqdm(synthetic_texts, desc="Computing BERTScore pairwise"):
-        # Compare current synthetic sample against all real texts
-        P, R, F1 = bert_score([syn] * len(real_texts), real_texts, lang=lang, verbose=False)
-        all_precisions.append(P.mean().item())
-        all_recalls.append(R.mean().item())
-        all_f1s.append(F1.mean().item())
-
-    return {
-        "pairwise_precision_mean": np.mean(all_precisions),
-        "pairwise_precision_std": np.std(all_precisions),
-        "pairwise_recall_mean": np.mean(all_recalls),
-        "pairwise_recall_std": np.std(all_recalls),
-        "pairwise_f1_mean": np.mean(all_f1s),
-        "pairwise_f1_std": np.std(all_f1s),
-    }
-
-def compute_distinct_2(texts):
-    all_bigrams = list(itertools.chain.from_iterable(
-        zip(tokens, tokens[1:]) for tokens in [nltk.word_tokenize(t) for t in texts]
-    ))
-    total_bigrams = len(all_bigrams)
-    unique_bigrams = len(set(all_bigrams))
-    return unique_bigrams / total_bigrams if total_bigrams > 0 else 0
-
-def compute_self_bleu(texts):
-    smoothie = SmoothingFunction().method4
-    scores = []
-    for i, hyp in enumerate(texts):
-        references = texts[:i] + texts[i+1:]
-        references_tokenized = [nltk.word_tokenize(ref) for ref in references]
-        hyp_tokenized = nltk.word_tokenize(hyp)
-        score = sentence_bleu(references_tokenized, hyp_tokenized, smoothing_function=smoothie)
-        scores.append(score)
-    return np.mean(scores)
-
-
-
-def num_tokens_from_string(string, encoding):
-    """Returns the number of tokens in a text string."""
-    try:
-        num_tokens = len(encoding.encode(string))
-    except:
-        num_tokens = 0
-    return num_tokens
-
-
-def calculate_all_metrics(synthetic_embeddings, original_embeddings, k=3):
-    method_name = ""
-    p_feats = synthetic_embeddings  # feature dimension = 1024
-    q_feats = original_embeddings
-    result = compute_mauve(p_feats, q_feats)
-    print("MAUVE: ", result.mauve)
-    p_hist, q_hist = result.p_hist, result.q_hist
-    kl, tv, wass = calculate_other_metrics(p_hist, q_hist)
-
-    state = knn_precision_recall_features(
-        original_embeddings, synthetic_embeddings, nhood_sizes=[k])
-    print(state)
-
-    from geomloss import SamplesLoss  # See also ImagesLoss, VolumesLoss
-
-    # feature dimension = 1024
-    p_feats = torch.from_numpy(synthetic_embeddings)
-    q_feats = torch.from_numpy(original_embeddings)
-
-    # Define a Sinkhorn (~Wasserstein) loss between sampled measures
-    loss = SamplesLoss(loss="sinkhorn", p=2, blur=.05)
-
-    # By default, use constant weights = 1/number of samples
-    sinkhorn_loss = loss(p_feats, q_feats).item()
-    print("Sinkhorn loss: %.3f" % sinkhorn_loss)
-
-    return state['precision'], state['recall'], state['f1'], result.mauve, kl, tv, wass, sinkhorn_loss
-
-
-def calculate_all_metrics_dict(synthetic_embeddings, original_embeddings, k=3):
-    import torch
-    from geomloss import SamplesLoss  # See also ImagesLoss, VolumesLoss
-
-    # Compute MAUVE and distribution histograms
-    p_feats = synthetic_embeddings  # feature dimension = 1024
-    q_feats = original_embeddings
-    result = compute_mauve(p_feats, q_feats)
-    p_hist, q_hist = result.p_hist, result.q_hist
-    kl, tv, wass = calculate_other_metrics(p_hist, q_hist)
-
-    # Compute k-NN precision/recall/F1
-    state = knn_precision_recall_features(original_embeddings, synthetic_embeddings, nhood_sizes=[k])
-
-    # Compute Sinkhorn loss (Wasserstein-like distance)
-    p_feats_torch = torch.from_numpy(synthetic_embeddings)
-    q_feats_torch = torch.from_numpy(original_embeddings)
-    loss = SamplesLoss(loss="sinkhorn", p=2, blur=0.05)
-    sinkhorn_loss = loss(p_feats_torch, q_feats_torch).item()
-
-    # Return all metrics in a dictionary
-    return {
-        "precision": state["precision"],
-        "recall": state["recall"],
-        "f1": state["f1"],
-        "mauve": result.mauve,
-        "kl_divergence": kl,
-        "total_variation": tv,
-        "wasserstein": wass,
-        "sinkhorn_loss": sinkhorn_loss,
-    }
-
-
-def calculate_text_metrics_dict(real_text_list, synthetic_data):
-    real_trimmed = real_text_list[:len(synthetic_data)]
-
-   
-    bert_score = compute_bertscore(real_trimmed, synthetic_data)["f1"]
-    
-    # bert_score = compute_bertscore_pairwise(real_text_list, synthetic_data)["pairwise_f1_mean"]
-
-    bleu = compute_bleu(real_trimmed, synthetic_data)
-    self_bleu = compute_self_bleu(synthetic_data)
-    distinct_2 = compute_distinct_2(synthetic_data)
-
-    real_lengths = get_lengths(real_text_list)
-    synth_lengths = get_lengths(synthetic_data)
-
-    return {
-        "bert_score_f1": bert_score,
-        "bleu": bleu,
-        "self_bleu": self_bleu,
-        "distinct_2": distinct_2,
-        "avg_real_length": sum(real_lengths) / len(real_lengths) if real_lengths else 0,
-        "avg_synth_length": sum(synth_lengths) / len(synth_lengths) if synth_lengths else 0,
-    }
-
-
-def plot_metrics(metrics_history, output_dir):
-    """Plot all metrics across epochs and save figures."""
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    epochs = sorted(metrics_history.keys())
-    metrics_names = list(metrics_history[epochs[0]].keys())
-    
-    # Log each metric with epoch as step
-    for epoch in epochs:
-        metrics_to_log = {"epoch": epoch}
-        for metric in metrics_names:
-            metrics_to_log[f"metrics/{metric}"] = metrics_history[epoch][metric]
-        wandb.log(metrics_to_log)
-    
-    # Plot each metric separately
-    for metric in metrics_names:
-        plt.figure(figsize=(10, 6))
-        values = [metrics_history[e][metric] for e in epochs]
-        plt.plot(epochs, values, marker='o')
-        plt.title(f'{metric} across epochs')
-        plt.xlabel('Epoch')
-        plt.ylabel(metric)
-        plt.grid(True)
-        plot_path = os.path.join(output_dir, f'{metric}.png')
-        plt.savefig(plot_path)
-        plt.close()
-        
-        # Log to wandb
-        wandb.log({f"plots/{metric}": wandb.Image(plot_path)})
-    
-    # Plot all metrics together (normalized)
-    plt.figure(figsize=(12, 8))
-    for metric in metrics_names:
-        values = [metrics_history[e][metric] for e in epochs]
-        # Normalize for visualization
-        values = (values - np.min(values)) / (np.max(values) - np.min(values) + 1e-8)
-        plt.plot(epochs, values, marker='o', label=metric)
-    plt.title('All metrics across epochs (normalized)')
-    plt.xlabel('Epoch')
-    plt.ylabel('Normalized value')
-    plt.legend()
-    plt.grid(True)
-    combined_path = os.path.join(output_dir, 'all_metrics_normalized.png')
-    plt.savefig(combined_path)
-    plt.close()
-    
-    # Log to wandb
-    wandb.log({"plots/all_metrics_normalized": wandb.Image(combined_path)})
-
 
 def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_size, private_data_size, num_run, k, dataset="yelp", min_token_threshold=100, epoch=None, 
                   real_file="", synthetic_folder=""):
@@ -328,7 +68,8 @@ def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_si
     print('FID : %.3f' % fid, len(all_original_embeddings),
           len(all_synthetic_embeddings))
 
-    all_run_results = []
+    # all_run_results = []
+    all_run_results = defaultdict(list)
 
     for run in range(num_run):
         if (private_data_size != -1) and (len(all_original_embeddings) > private_data_size):
@@ -348,105 +89,56 @@ def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_si
         print("syn emb len", len(synthetic_embeddings))
 
         start_time = time.time()
-        precision, recall, f1, mauve, kl, tv, wass, sinkhorn_loss = calculate_all_metrics(
-            synthetic_embeddings, original_embeddings, k)
+        # precision, recall, f1, mauve, kl, tv, wass, sinkhorn_loss = calculate_all_metrics(
+        #     original_embeddings, synthetic_embeddings, k)
         
         if real_file != "":
             df = pd.read_csv(real_file)  
             real_text_list = df["text"].tolist()
 
-            # bert_score = compute_bertscore(real_text_list, synthetic_data)
-            bert_score = compute_bertscore(real_text_list[:len(synthetic_data)], synthetic_data)["f1"]
-            # bert_score = compute_bertscore_pairwise(real_text_list, synthetic_data)["pairwise_f1_mean"]
-            blue = compute_bleu(real_text_list, synthetic_data)
-
-            self_blue = compute_self_bleu(synthetic_data)
-            distinct_2 = compute_distinct_2(synthetic_data)
+            metrics = compare_text_sets(real_text_list, synthetic_data, original_embeddings, synthetic_embeddings)
 
             real_lengths = get_lengths(real_text_list)
             synth_lengths = get_lengths(synthetic_data)
-
             plots_folder = os.path.join(synthetic_folder, "plots_metrics")
             os.makedirs(plots_folder, exist_ok=True)
             plot_length_distributions(real_lengths, synth_lengths, filename=os.path.join(plots_folder, f"length_distribution_{epoch}.png"))
-            dict_lengths_metrics = compare_length_distributions(real_lengths, synth_lengths)
+
 
         else:
-            bert_score, blue, self_blue, distinct_2 = 0, 0, 0, 0
+            metrics = {}
+
 
         print("--- %s seconds for computing metric ---" %
               (time.time() - start_time))
 
+        metric_keys = list(metrics.keys())  
+        
         with open(csv_fname, 'a', newline='') as file:
             writer = csv.writer(file)
+
             if run == 0:
-                writer.writerow(["run", "fid", "precision", "recall",
-                                "f1", "mauve", "kl", "tv", "wass", "sinkhorn_loss",
-                                "bert_score", "blue", "self_blue", "distinct_2",
-                                "length_real_mean",
-                                "length_synthetic_mean",
-                                "length_real_std",
-                                "length_synthetic_std",
-                                "length_kl_divergence",
-                                "length_wasserstein_distance"])
-            row_list = [
-                round(fid, 4),
-                round(precision, 4),
-                round(recall, 4),
-                round(f1, 4),
-                round(mauve, 4),
-                round(kl, 4),
-                round(tv, 4),
-                round(wass, 4),
-                round(sinkhorn_loss, 4),
+                writer.writerow(["run"] + metric_keys)
+            
+            row = [round(metrics.get(k, 0), 4) for k in metric_keys]
+            writer.writerow([run] + row)
 
-                round(bert_score, 4),
-                round(blue, 4),
-                round(self_blue, 4),
-                round(distinct_2, 4),
+        for k in metric_keys:
+            all_run_results[k].append(metrics.get(k, 0))
 
-                round(dict_lengths_metrics["length_real_mean"], 4),
-                round(dict_lengths_metrics["length_synthetic_mean"], 4),
-                round(dict_lengths_metrics["length_real_std"], 4),
-                round(dict_lengths_metrics["length_synthetic_std"], 4),
-                round(dict_lengths_metrics["length_kl_divergence"], 4),
-                round(dict_lengths_metrics["length_wasserstein_distance"], 4),
-            ]
-            writer.writerow([run]+row_list)
+    metrics_dict = {}
+    mean_run_results = []
 
-        all_run_results.append(row_list)
-
-    mean_run_results = np.mean(np.array(all_run_results), axis=0).tolist()
-    mean_run_results = [round(x, 4) for x in mean_run_results]
     with open(csv_fname, 'a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(["avg"] + mean_run_results)
-    
-    # Create metrics dictionary
-    metrics_dict = {
-        "fid": mean_run_results[0],
-        "precision": mean_run_results[1],
-        "recall": mean_run_results[2],
-        "f1": mean_run_results[3],
-        "mauve": mean_run_results[4],
-        "kl": mean_run_results[5],
-        "tv": mean_run_results[6],
-        "wass": mean_run_results[7],
-        "sinkhorn_loss": mean_run_results[8],
 
-        "bert_score": mean_run_results[9],
-        "blue": mean_run_results[10],
-        "self_blue": mean_run_results[11],
-        "distinct_2": mean_run_results[12],
-
-        "length_real_mean": mean_run_results[13],
-        "length_synthetic_mean": mean_run_results[14],
-        "length_real_std": mean_run_results[15],
-        "length_synthetic_std": mean_run_results[16],
-        "length_kl_divergence": mean_run_results[17],
-        "length_wasserstein_distance": mean_run_results[18],
-
-    }
+        avg_row = []
+        for k in metric_keys:
+            mean_val = round(np.mean(all_run_results[k]), 4)
+            metrics_dict[k] = mean_val
+            avg_row.append(mean_val)
+        
+        writer.writerow(["avg"] + avg_row)
 
     if wandb.run is not None:
         wandb.log({"epoch": epoch, **{f"metrics_1/{k}": v for k, v in metrics_dict.items()}})

@@ -98,8 +98,8 @@ def log_count(count, clean_count, path):
         csv_writer.writerow(["clean_count", clean_count.tolist()])
 
 
-def log_metrics(seed_syn_samples, all_private_texts, emb_synth, emb_real, step=0, log_online=False):
-    metrics = compare_text_sets(seed_syn_samples, all_private_texts, emb_synth, emb_real)
+def log_metrics(all_private_texts, seed_syn_samples, emb_real, emb_synth, step=0, log_online=False):
+    metrics = compare_text_sets(all_private_texts, seed_syn_samples, emb_real, emb_synth)
     logging.info(f"Metrics: {metrics}")
 
     if log_online:
