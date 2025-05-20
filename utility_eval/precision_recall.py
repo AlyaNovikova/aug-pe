@@ -46,7 +46,8 @@ class DistanceBlock():
 
     def pairwise_distances(self, U, V):
         """Evaluate pairwise distances between two batches of feature vectors."""
-        output = pairwise_distances(U, V, n_jobs=24)
+        # output = pairwise_distances(U, V, n_jobs=24)
+        output = pairwise_distances(U, V, metric='cosine', n_jobs=24)
         return output
 
 

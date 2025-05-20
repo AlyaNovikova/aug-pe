@@ -43,6 +43,8 @@ def main():
                     folder=f'{args.result_folder}/train')
 
     private_classes = list(private_labels_counter.keys())
+    print("private_classes", private_classes)
+    print("private_labels_counter", private_labels_counter)
     logging.info(
         f'Private_num_classes: {len(private_classes)}, Private_num_samples: {len(all_private_samples)}, Private_num_labels:{len(all_private_labels)}')
 
@@ -108,14 +110,14 @@ def main():
             model_name=args.feature_extractor,
 
         )
-        # print("-----------------------------222-\n\n", synthetic_features, "------------------------------\n\n")
+        print("-----------------------------222-\n\n", len(synthetic_features), "------------------------------\n\n")
 
         # compute_fid(synthetic_features, all_private_features, args.feature_extractor,
         #             folder=args.result_folder,  step=start_t-1, log_online=args.log_online)
         
         log_metrics(all_private_samples, seed_syn_samples,  
                     all_private_features, synthetic_features,
-                        step=start_t-1, log_online=args.log_online)
+                        step=start_t-1, log_online=args.log_online, result_folder=args.result_folder, epoch=start_t-1)
 
     if args.init_combine_divide_L > 1:
         parent_directory = os.path.dirname(args.data_checkpoint_path)
@@ -341,13 +343,13 @@ def main():
                 model_name=args.feature_extractor,
 
             )
-            # print("-----------------------------444-\n\n", synthetic_features, "------------------------------\n\n")
+            print("-----------------------------444-\n\n", len(synthetic_features), "------------------------------\n\n")
 
             # compute_fid(synthetic_features, all_private_features, args.feature_extractor,
             #             folder=args.result_folder,  step=t, log_online=args.log_online)
             log_metrics(all_private_samples, all_selected_samples, 
                         all_private_features, synthetic_features,
-                        step=t, log_online=args.log_online)
+                        step=t, log_online=args.log_online, result_folder=args.result_folder, epoch=t)
 
                         
         all_data = log_samples(

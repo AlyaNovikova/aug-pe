@@ -71,7 +71,7 @@ def parse_args():
     parser.add_argument(
         '--feature_extractor',
         type=str,
-        default='all-mpnet-base-v2',
+        default='stsb-roberta-base-v2',
         # choices=["sentence-t5-xl", "sentence-t5-large",  "sentence-t5-base",
         #          "all-MiniLM-L6-v2", "paraphrase-MiniLM-L6-v2", "all-mpnet-base-v2", "stsb-roberta-base-v2",
         #          "roberta-large-nli-stsb-mean-tokens", "distilbert-base-nli-stsb-mean-tokens", 'text-embedding-ada-002'],

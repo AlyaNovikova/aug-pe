@@ -121,7 +121,7 @@ from tqdm import tqdm
 
 def compute_bertscore(real_texts, synthetic_texts, lang='en'):
     if len(real_texts) != len(synthetic_texts):
-        real_text_list = real_texts[:len(synthetic_data)]
+        real_text_list = real_texts[:len(synthetic_texts)]
     else:
         real_text_list = real_texts
     P, R, F1 = bert_score(synthetic_texts, real_text_list, lang=lang, verbose=False)
@@ -204,55 +204,90 @@ def num_tokens_from_string(string, encoding):
         num_tokens = 0
     return num_tokens
 
-def calculate_all_metrics(original_embeddings, synthetic_embeddings, k=3):
-    method_name = ""
-    p_feats = synthetic_embeddings  # feature dimension = 1024
-    q_feats = original_embeddings
-    result = compute_mauve(p_feats, q_feats)
-    print("MAUVE: ", result.mauve)
-    p_hist, q_hist = result.p_hist, result.q_hist
-    kl, tv, wass = calculate_other_metrics(p_hist, q_hist)
+# def calculate_all_metrics(original_embeddings, synthetic_embeddings, k=3):
+#     method_name = ""
+#     p_feats = synthetic_embeddings  # feature dimension = 1024
+#     q_feats = original_embeddings
+#     result = compute_mauve(p_feats, q_feats)
+#     print("MAUVE: ", result.mauve)
+#     p_hist, q_hist = result.p_hist, result.q_hist
+#     kl, tv, wass = calculate_other_metrics(p_hist, q_hist)
 
-    state = knn_precision_recall_features(
-        original_embeddings, synthetic_embeddings, nhood_sizes=[k])
-    print(state)
+#     state = knn_precision_recall_features(
+#         original_embeddings, synthetic_embeddings, nhood_sizes=[k])
+#     print(state)
 
-    from geomloss import SamplesLoss  # See also ImagesLoss, VolumesLoss
+#     from geomloss import SamplesLoss  # See also ImagesLoss, VolumesLoss
 
-    # feature dimension = 1024
-    p_feats = torch.from_numpy(synthetic_embeddings)
-    q_feats = torch.from_numpy(original_embeddings)
+#     # feature dimension = 1024
+#     p_feats = torch.from_numpy(synthetic_embeddings)
+#     q_feats = torch.from_numpy(original_embeddings)
 
-    # Define a Sinkhorn (~Wasserstein) loss between sampled measures
-    loss = SamplesLoss(loss="sinkhorn", p=2, blur=.05)
+#     # Define a Sinkhorn (~Wasserstein) loss between sampled measures
+#     loss = SamplesLoss(loss="sinkhorn", p=2, blur=.05)
 
-    # By default, use constant weights = 1/number of samples
-    sinkhorn_loss = loss(p_feats, q_feats).item()
-    print("Sinkhorn loss: %.3f" % sinkhorn_loss)
+#     # By default, use constant weights = 1/number of samples
+#     sinkhorn_loss = loss(p_feats, q_feats).item()
+#     print("Sinkhorn loss: %.3f" % sinkhorn_loss)
 
-    return state['precision'], state['recall'], state['f1'], result.mauve, kl, tv, wass, sinkhorn_loss
+#     return state['precision'], state['recall'], state['f1'], result.mauve, kl, tv, wass, sinkhorn_loss
 
-def calculate_all_metrics_dict(original_embeddings, synthetic_embeddings, k=3):
+def calculate_all_metrics_dict(original_embeddings, synthetic_embeddings, k=3, real_texts=None, synthetic_texts=None):
     import torch
     from geomloss import SamplesLoss  # See also ImagesLoss, VolumesLoss
 
+    from sklearn.preprocessing import normalize
+    from sklearn.decomposition import PCA
+
+    pca = PCA(n_components=15)
+    act1_pca = pca.fit_transform(original_embeddings)
+    act2_pca = pca.fit_transform(synthetic_embeddings)
+
+    print("original_embeddings and synthetic_embeddings shape", original_embeddings.shape, synthetic_embeddings.shape)
+
+    fid = calculate_fid(original_embeddings, synthetic_embeddings)
+    print("METRICS", "fid1", fid)
+
+    ref_features = normalize(original_embeddings, axis=1)
+    synt_features = normalize(synthetic_embeddings, axis=1)
+
+    fid = calculate_fid(ref_features, synt_features)
+    print("METRICS", "fid2", fid)
+
+    fid = calculate_fid(act1_pca, act2_pca)
+    print("METRICS", "fid3", fid)
+
     # Compute MAUVE and distribution histograms
-    p_feats = synthetic_embeddings  # feature dimension = 1024
-    q_feats = original_embeddings
-    result = compute_mauve(p_feats, q_feats)
+    p_feats = synt_features  # feature dimension = 1024
+    q_feats = ref_features
+
+    result = compute_mauve_score(real_texts, synthetic_texts)
+    print("METRICS", "mauve 1", result.mauve)
+
     p_hist, q_hist = result.p_hist, result.q_hist
     kl, tv, wass = calculate_other_metrics(p_hist, q_hist)
 
     # Compute k-NN precision/recall/F1
-    state = knn_precision_recall_features(original_embeddings, synthetic_embeddings, nhood_sizes=[k])
+    # state = knn_precision_recall_features(ref_features, synt_features, nhood_sizes=[5, 10, 15])
+    max_len = min(min(len(ref_features), len(synt_features)) - 1, 5)
+    print('Max neighbors for precision and recall', max_len)
+    state = knn_precision_recall_features(ref_features, synt_features, nhood_sizes=[max_len])
+    print("METRICS", "precision_recall1--", state["precision"], state["recall"])
+
+    state = knn_precision_recall_features(ref_features, synt_features, nhood_sizes=[3])
+    print("METRICS", "precision_recall2--", state["precision"], state["recall"])
+
+    state = knn_precision_recall_features(original_embeddings, synthetic_embeddings, nhood_sizes=[max_len])
+    print("METRICS", "precision_recall3--", state["precision"], state["recall"])
+
+    state = knn_precision_recall_features(original_embeddings, synthetic_embeddings, nhood_sizes=[3])
+    print("METRICS", "precision_recall4--", state["precision"], state["recall"])
 
     # Compute Sinkhorn loss (Wasserstein-like distance)
-    p_feats_torch = torch.from_numpy(synthetic_embeddings)
-    q_feats_torch = torch.from_numpy(original_embeddings)
+    p_feats_torch = torch.from_numpy(synt_features)
+    q_feats_torch = torch.from_numpy(ref_features)
     loss = SamplesLoss(loss="sinkhorn", p=2, blur=0.05)
     sinkhorn_loss = loss(p_feats_torch, q_feats_torch).item()
-
-    fid = calculate_fid(original_embeddings, synthetic_embeddings)
 
     # Return all metrics in a dictionary
     return {
@@ -264,7 +299,7 @@ def calculate_all_metrics_dict(original_embeddings, synthetic_embeddings, k=3):
         "FID": fid,
         # "total_variation": tv,
         # "wasserstein": wass,
-        # "sinkhorn_loss": sinkhorn_loss,
+        "sinkhorn_loss": sinkhorn_loss,
     }
 
 
@@ -347,32 +382,81 @@ def plot_metrics(metrics_history, output_dir):
     # # Log to wandb
     # wandb.log({"plots/all_metrics_normalized": wandb.Image(combined_path)})
 
+import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+import numpy as np
+
+def plot_embeddings(real_features, synthetic_features, method="tsne", title="Embeddings Visualization", n_components=2, filename=""):
+    # Stack and create labels
+    all_embeddings = np.vstack([real_features, synthetic_features])
+    from sklearn.preprocessing import normalize
+    import umap
+    all_embeddings = normalize(all_embeddings)
+
+    labels = np.array(["Real"] * len(real_features) + ["Synthetic"] * len(synthetic_features))
+
+    # Dimensionality reduction
+    if method == "tsne":
+        reducer = TSNE(n_components=n_components, perplexity=30, n_iter=1000, random_state=42)
+    elif method == "umap":
+        reducer = umap.UMAP(n_components=n_components, n_neighbors=15, min_dist=0.1, random_state=42)
+
+    else:
+        raise ValueError("Unsupported method: use 'tsne'")
+
+    reduced_embeddings = reducer.fit_transform(all_embeddings)
+
+    # Plot
+    plt.figure(figsize=(10, 6))
+    for label, color in zip(["Real", "Synthetic"], ["blue", "orange"]):
+        idx = labels == label
+        plt.scatter(reduced_embeddings[idx, 0], reduced_embeddings[idx, 1], label=label, alpha=0.7, c=color)
+
+    plt.title(title)
+    plt.legend()
+    plt.grid(True)
+    # plt.show()
+    
+    plt.savefig(filename)
+    plt.close()
 
 
-def compare_text_sets(real_texts, synthetic_texts, emb_real, emb_synth):
+def compare_text_sets(real_texts, synthetic_texts, emb_real, emb_synth, result_folder="", epoch=0):
+
+    plots_folder = os.path.join(result_folder, "plots_metrics")
+    os.makedirs(plots_folder, exist_ok=True)
+    plot_embeddings(emb_real, emb_synth, filename=os.path.join(plots_folder, f"embeddings_{epoch}.png"), n_components=3, method="umap")
+
     metrics = {}
 
     tokenizer = get_tokenizer()
 
     metrics.update(vocabulary_overlap(real_texts, synthetic_texts, tokenizer))
     metrics.update(calculate_text_metrics_dict(real_texts, synthetic_texts, tokenizer))
-    metrics.update(calculate_all_metrics_dict(emb_real, emb_synth))
+    metrics.update(calculate_all_metrics_dict(emb_real, emb_synth, real_texts=real_texts, synthetic_texts=synthetic_texts))
     
     return metrics
 
 # calculate frechet inception distance
-def calculate_fid(act1, act2):
+def calculate_fid(act1, act2, regularize=True):
     # Normalize embeddings first
-    act1 = (act1 - act1.mean()) / act1.std()
-    act2 = (act2 - act2.mean()) / act2.std()
+    # act1 = (act1 - act1.mean()) / act1.std()
+    # act2 = (act2 - act2.mean()) / act2.std()
     
     # calculate mean and covariance statistics
     mu1, sigma1 = act1.mean(axis=0), cov(act1, rowvar=False)
     mu2, sigma2 = act2.mean(axis=0), cov(act2, rowvar=False)
+
+    # Regularize covariance matrices
+    if regularize:
+        epsilon = 1e-6
+        sigma1 += np.eye(sigma1.shape[0]) * epsilon
+        sigma2 += np.eye(sigma2.shape[0]) * epsilon
+
     # calculate sum squared difference between means
     ssdiff = np.sum((mu1 - mu2) ** 2.0)
     # calculate sqrt of product between cov
-    covmean = sqrtm(sigma1.dot(sigma2))
+    covmean = sqrtm(sigma1 @ sigma2)
     # check and correct imaginary numbers from sqrt
     if iscomplexobj(covmean):
         covmean = covmean.real

@@ -20,37 +20,6 @@ os.environ["SSL_CERT_FILE"] = certifi.where()
 import ollama
 import requests
 
-def generate_prompts(df, num_prompts: int = 15, summary_path: str = "data/mimic/summarized_texts.csv"):
-    prompts = []
-    
-    try:
-        df = pd.read_csv(summary_path)
-        summaries = df["summary"].dropna().tolist()
-    except Exception as e:
-        print(f"Warning: Could not load summaries from {summary_path} — {e}")
-        summaries = []
-
-    for _ in range(num_prompts):
-        doc_type = random.choice(DOC_TYPES)
-        specialty = random.choice(SPECIALTIES)
-        style = random.choice(STYLES)
-        labels_str = LABELS  
-
-        use_summary = random.random() < 0.7 
-
-        if use_summary and len(summaries) > 0:
-            # print("\n ____USE summaries____ ", len(summaries), "\n")
-            summary = random.choice(summaries)
-            template = random.choice(INSTRUCTION_TEMPLATES_WITH_SUMMARIES)
-            prompt = template(doc_type, specialty, style, labels_str, summary)
-        else:
-            template = random.choice(INSTRUCTION_TEMPLATES)
-            prompt = template(doc_type, specialty, style, labels_str)
-        
-        prompts.append(prompt.strip())
-    
-    return prompts
-
 
 class HFAPI(API):
     def __init__(self,
@@ -195,10 +164,43 @@ class HFAPI(API):
         parser.add_argument("--percentage_of_summaries", type=float, default=0.7)
 
         return parser
+    
+    def generate_prompts(self, num_prompts: int = 15, summary_path: str = "data/mimic/summarized_texts.csv"):
+        prompts = []
+        
+        try:
+            df = pd.read_csv(summary_path)
+            summaries = df["summary"].dropna().tolist()
+        except Exception as e:
+            print(f"Warning: Could not load summaries from {summary_path} — {e}")
+            summaries = []
+
+        print("Percentage of summaries:", self.percentage_of_summaries)
+        for _ in range(num_prompts):
+            doc_type = random.choice(DOC_TYPES)
+            specialty = random.choice(SPECIALTIES)
+            style = random.choice(STYLES)
+            labels_str = LABELS  
+
+            use_summary = random.random() < self.percentage_of_summaries
+
+            if use_summary and len(summaries) > 0:
+                # print("\n ____USE summaries____ ", len(summaries), "\n")
+                summary = random.choice(summaries)
+                template = random.choice(INSTRUCTION_TEMPLATES_WITH_SUMMARIES)
+                prompt = template(doc_type, specialty, style, labels_str, summary)
+            else:
+                template = random.choice(INSTRUCTION_TEMPLATES)
+                prompt = template(doc_type, specialty, style, labels_str)
+            
+            prompts.append(prompt.strip())
+        
+        return prompts
 
     def text_random_sampling(self, num_samples, prompt_counter=None, lens_dict=None):
-        print("\n\n!!!!!!!!!!!!", "text_random_sampling hfapi", "\n\n!!!!!!!!!!!!")
+        print("\n\n!!!!!!!!!!!!", "text_random_sampling hfapi", num_samples, "\n\n!!!!!!!!!!!!")
         ratio_generation_training = num_samples / sum(prompt_counter.values())
+
         all_sequences = []
         ppls_cur = []
         additional_info = []
@@ -245,7 +247,7 @@ class HFAPI(API):
                     # Generate multiple different prompts for MIMIC
                     # num_prompts_to_generate = max(1, min(num_seq_to_generate, 10))
                     num_prompts_to_generate = num_seq_to_generate
-                    generated_prompts = generate_prompts(num_prompts_to_generate)
+                    generated_prompts = self.generate_prompts(num_prompts=num_prompts_to_generate)
                     
                     sequences_per_prompt = max(1, num_seq_to_generate // num_prompts_to_generate)
                     remaining_sequences = num_seq_to_generate % num_prompts_to_generate

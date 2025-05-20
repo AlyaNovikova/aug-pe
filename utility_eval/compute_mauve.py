@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import matplotlib.pyplot as plt
 import seaborn as sns
 # import faiss
+import mauve
 
 from sklearn.cluster import KMeans
 
@@ -28,8 +29,20 @@ except (ImportError, ModuleNotFoundError):
     FOUND_TRANSFORMERS = False
 
 # if FOUND_TORCH and FOUND_TRANSFORMERS:
-    # only needed for tokenizing
-    # from .utils import get_tokenizer, get_model, featurize_tokens_from_model, get_device_from_arg
+#     # only needed for tokenizing
+#     from .utils import get_tokenizer, get_model, featurize_tokens_from_model, get_device_from_arg
+
+
+
+def compute_mauve_score(real_texts, synthetic_texts):
+    print("compute_mauve function", len(real_texts), len(synthetic_texts))
+    result = mauve.compute_mauve(
+        p_text=synthetic_texts,
+        q_text=real_texts,
+        device_id=0  
+    )
+    return result
+
 
 
 MODEL, TOKENIZER, MODEL_NAME = None, None, None
@@ -289,6 +302,12 @@ def calculate_other_metrics(p,q):
     q[q == 0] = 1e-8
 
     kl = sum(kl_div(p,q))
+
+    print("METRICS", "kl1", kl)
+
+    kl = kl_divergence(p, q)
+    print("METRICS", "kl2", kl)
+
     tv = total_variation_distance(p,q)
     wass = wasserstein_distance(p,q)
 

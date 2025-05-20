@@ -1,10 +1,10 @@
 mlm_prob=0.6
 var_type="mimic_rephrase_tone"
-# feat_ext="stsb-roberta-base-v2"
-feat_ext="pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb"
+feat_ext="stsb-roberta-base-v2"
+# feat_ext="pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb"
 length=1024
 temperature=1.0
-num_seed_samples=5
+num_seed_samples=3
 lookahead_degree=0
 k=2 # number of variations
 L=$((k+1))
@@ -14,12 +14,12 @@ echo generating $num_samples samples
 epochs=10
 word_var_scale=0
 select_syn_mode=rank
-random_str="_ollama_summary_01"
-percentage_of_summaries=0.5
+random_str="_metrics8"
+percentage_of_summaries=0.0
 # model_type="gpt2"
 # model_type="mistral"
 # model_type="deepseek-v2.5"
-model_type="aravhawk/llama4"
+# model_type="aravhawk/llama4"
 # model_type="ingu627/llama4-scout-q4:109b"
 # model_type="llama3.3"
 # model_type="deepseek-r1:70b"
@@ -27,7 +27,7 @@ model_type="aravhawk/llama4"
 # model_type="mistral-small3.1"
 # model_type="mistral-large"
 # model_type="qwen3:235b"
-# model_type="deepseek-v2:16b"
+model_type="deepseek-v2:16b"
 # model_type="mistralai/Mixtral-8x7B-Instruct-v0.1"
 noise=0
 args=""
@@ -42,7 +42,7 @@ elif [ "$model_type" = "gpt2" ]; then
 else
     batch_size=16
 fi
-result_folder="result/mimic/${model_type}_${feat_ext}/${percentage_of_summaries}_${num_samples}_n${noise}_L${L}_initL${init_L}_var${lookahead_degree}_${var_type}_${select_syn_mode}_len${length}var${word_var_scale}_t${temperature}_${random_str}"
+result_folder="result/mimic_check/${model_type}_${feat_ext}/${percentage_of_summaries}_${num_samples}_n${noise}_L${L}_initL${init_L}_var${lookahead_degree}_${var_type}_${select_syn_mode}_len${length}var${word_var_scale}_t${temperature}_${random_str}"
 
 
 ### load datacheckpoint 
@@ -62,6 +62,8 @@ echo load data from ${data_checkpoint_args} ${args}
 
 pip install bert_score
 pip install rouge-score
+pip install mauve-text
+pip install umap-learn
 
 ### run PE
 python main.py ${args} ${data_checkpoint_args} \
