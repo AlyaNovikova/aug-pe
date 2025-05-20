@@ -305,11 +305,12 @@ def calculate_other_metrics(p,q):
 
     print("METRICS", "kl1", kl)
 
-    kl = kl_divergence(p, q)
-    print("METRICS", "kl2", kl)
+    # kl = kl_divergence(p, q)
+    # print("METRICS", "kl2", kl)
 
-    tv = total_variation_distance(p,q)
-    wass = wasserstein_distance(p,q)
+    # tv = total_variation_distance(p,q)
+    # wass = wasserstein_distance(p,q)
+    tv, wass = 0, 0
 
     print("KL: ", kl)
     print("TV: ", tv)

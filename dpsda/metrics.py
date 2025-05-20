@@ -239,10 +239,6 @@ def calculate_all_metrics_dict(original_embeddings, synthetic_embeddings, k=3, r
     from sklearn.preprocessing import normalize
     from sklearn.decomposition import PCA
 
-    pca = PCA(n_components=15)
-    act1_pca = pca.fit_transform(original_embeddings)
-    act2_pca = pca.fit_transform(synthetic_embeddings)
-
     print("original_embeddings and synthetic_embeddings shape", original_embeddings.shape, synthetic_embeddings.shape)
 
     fid = calculate_fid(original_embeddings, synthetic_embeddings)
@@ -253,9 +249,6 @@ def calculate_all_metrics_dict(original_embeddings, synthetic_embeddings, k=3, r
 
     fid = calculate_fid(ref_features, synt_features)
     print("METRICS", "fid2", fid)
-
-    fid = calculate_fid(act1_pca, act2_pca)
-    print("METRICS", "fid3", fid)
 
     # Compute MAUVE and distribution histograms
     p_feats = synt_features  # feature dimension = 1024
@@ -274,14 +267,8 @@ def calculate_all_metrics_dict(original_embeddings, synthetic_embeddings, k=3, r
     state = knn_precision_recall_features(ref_features, synt_features, nhood_sizes=[max_len])
     print("METRICS", "precision_recall1--", state["precision"], state["recall"])
 
-    state = knn_precision_recall_features(ref_features, synt_features, nhood_sizes=[3])
-    print("METRICS", "precision_recall2--", state["precision"], state["recall"])
-
     state = knn_precision_recall_features(original_embeddings, synthetic_embeddings, nhood_sizes=[max_len])
     print("METRICS", "precision_recall3--", state["precision"], state["recall"])
-
-    state = knn_precision_recall_features(original_embeddings, synthetic_embeddings, nhood_sizes=[3])
-    print("METRICS", "precision_recall4--", state["precision"], state["recall"])
 
     # Compute Sinkhorn loss (Wasserstein-like distance)
     p_feats_torch = torch.from_numpy(synt_features)
