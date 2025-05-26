@@ -15,20 +15,23 @@ epochs=10
 word_var_scale=0
 select_syn_mode=rank
 random_str="_metrics_05_20_1"
+
 percentage_of_summaries=0.0
-# model_type="gpt2"
-# model_type="mistral"
+summaries_path = "data/mimic/summarized_texts.csv"
+diversity_number = 0
+length_mean = 2487
+length_std = 930
+length_min = 1200
+length_max = 4100
+
 # model_type="deepseek-v2.5"
 # model_type="aravhawk/llama4"
-# model_type="ingu627/llama4-scout-q4:109b"
-# model_type="llama3.3"
-# model_type="deepseek-r1:70b"
 # model_type="qwen:72b"
 # model_type="mistral-small3.1"
 # model_type="mistral-large"
-# model_type="qwen3:235b"
+model_type="gemma3:27b"
 model_type="deepseek-v2:16b"
-# model_type="mistralai/Mixtral-8x7B-Instruct-v0.1"
+
 noise=0
 args=""
 api="HFGPT"

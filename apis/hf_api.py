@@ -27,7 +27,10 @@ class HFAPI(API):
                  output_dir, seed, mlm_probability,
                  length, temperature, top_k, top_p, repetition_penalty, do_sample, fp16, no_cuda,
                  random_sampling_batch_size, num_beams, dry_run,
-                 variation_batch_size, percentage_of_summaries,
+                 variation_batch_size, 
+                 percentage_of_summaries, summaries_path, 
+                 diversity_number, 
+                 length_mean, length_std, length_min, length_max,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -61,6 +64,12 @@ class HFAPI(API):
         model_name_or_path = self.model_type
 
         self.percentage_of_summaries = percentage_of_summaries
+        self.summaries_path = summaries_path
+        self.diversity_number = diversity_number
+        self.length_mean = length_mean
+        self.length_std = length_std
+        self.length_min = length_min
+        self.length_max = length_max
 
         if model_name_or_path=="gpt2":
             self.use_ollama = False
@@ -162,17 +171,23 @@ class HFAPI(API):
                             help="Avoid using CUDA when available")
         
         parser.add_argument("--percentage_of_summaries", type=float, default=0.7)
+        parser.add_argument("--summaries_path", type=str, default="data/mimic/summarized_texts.csv")
+        parser.add_argument("--diversity_number", type=int, default=0)
+        parser.add_argument("--length_mean", type=int, default=0)
+        parser.add_argument("--length_std", type=int, default=0)
+        parser.add_argument("--length_min", type=int, default=0)
+        parser.add_argument("--length_max", type=int, default=0)
 
         return parser
     
-    def generate_prompts(self, num_prompts: int = 15, summary_path: str = "data/mimic/summarized_texts.csv"):
+    def generate_prompts(self, num_prompts: int = 15):
         prompts = []
         
         try:
-            df = pd.read_csv(summary_path)
+            df = pd.read_csv(self.summary_path)
             summaries = df["summary"].dropna().tolist()
         except Exception as e:
-            print(f"Warning: Could not load summaries from {summary_path} — {e}")
+            print(f"Warning: Could not load summaries from {self.summary_path} — {e}")
             summaries = []
 
         print("Percentage of summaries:", self.percentage_of_summaries)
@@ -320,11 +335,18 @@ class HFAPI(API):
             if self.dry_run:
                 generated_text = "s" * max_length
             else:
+
+                if np.random.random() < 0.25:
+                    target_len = np.random.randint(self.length_min, self.length_max + 1)
+                else:
+                    target_len = max(1, round(np.random.normal(self.length_mean, self.length_std)))
+                target_len = min(target_len, self.length_max)
+
                 response = self.client.generate(
                     model=self.model_type,
                     prompt=prompt,
                     options={'temperature': self.temperature, 
-                            #  'num_predict': max_length
+                             'num_predict': target_len,
                              }
                 )
                 generated_text = response["response"] 
@@ -421,11 +443,17 @@ class HFAPI(API):
                 if self.dry_run:
                     generated_text = prompt + "s" * self.length
                 else:
+                    if np.random.random() < 0.25:
+                        target_len = np.random.randint(self.length_min, self.length_max + 1)
+                    else:
+                        target_len = max(1, round(np.random.normal(self.length_mean, self.length_std)))
+                    target_len = min(max(target_len, len(prompt.split())), self.length_max)
+
                     response = self.client.generate(
                         model=self.model_type,
                         prompt=prompt,
                         options={'temperature': self.temperature, 
-                                #  'num_predict': self.length
+                                #  'num_predict': target_len,
                                  }
                     )
                     generated_text = response["response"]  # Direct access, preserves all formatting
