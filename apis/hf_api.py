@@ -9,6 +9,7 @@ from .utils import set_seed, get_subcategories, ALL_styles, ALL_OPENREVIEW_style
 from .prompts import INSTRUCTION_TEMPLATES, SPECIALTIES, DOC_TYPES, STYLES, LABELS, INSTRUCTION_TEMPLATES_WITH_SUMMARIES
 import re
 import collections
+from collections import Counter
 
 import os
 import ssl
@@ -184,10 +185,10 @@ class HFAPI(API):
         prompts = []
         
         try:
-            df = pd.read_csv(self.summary_path)
+            df = pd.read_csv(self.summaries_path)
             summaries = df["summary"].dropna().tolist()
         except Exception as e:
-            print(f"Warning: Could not load summaries from {self.summary_path} — {e}")
+            print(f"Warning: Could not load summaries from {self.summaries_path} — {e}")
             summaries = []
 
         print("Percentage of summaries:", self.percentage_of_summaries)
@@ -213,7 +214,7 @@ class HFAPI(API):
         return prompts
 
     def text_random_sampling(self, num_samples, prompt_counter=None, lens_dict=None):
-        print("\n\n!!!!!!!!!!!!", "text_random_sampling hfapi", num_samples, "\n\n!!!!!!!!!!!!")
+        # print("\n\n!!!!!!!!!!!!", "text_random_sampling hfapi", num_samples, "\n\n!!!!!!!!!!!!")
         ratio_generation_training = num_samples / sum(prompt_counter.values())
 
         all_sequences = []
@@ -396,7 +397,8 @@ class HFAPI(API):
         return all_data
 
     def text_variation(self, sequences, additional_info,
-                       num_variations_per_sequence, variation_degree):
+                       num_variations_per_sequence, variation_degree, epoch_rate=1):
+        print("EPOCH RATE", epoch_rate)
         if not self.use_ollama:
             self.model.eval()
             # self.model.to(self.device)
@@ -418,7 +420,35 @@ class HFAPI(API):
                     batch_size=self.variation_batch_size)
 
             variations.append(sub_variations)
-        return np.stack(variations, axis=1), var_labels, [], [], []
+        # return np.stack(variations, axis=1), var_labels, [], [], []
+    
+        variations = np.stack(variations, axis=1)
+
+        # If diversity_number is set, replace random samples with diverse ones
+        if self.diversity_number > 0 and epoch_rate < 0.7:
+            print("!!Diversity!!")
+            diverse_samples, labels, _, _ = self.text_random_sampling(num_samples=self.diversity_number,
+                                                                      prompt_counter=Counter({'mimic': 100}), 
+                                                                      lens_dict=None)
+    
+            flattened_variations = variations.reshape(-1, *variations.shape[2:])
+
+            # Randomly select indices to replace
+            replace_indices = np.random.choice(
+                len(flattened_variations),
+                size=min(self.diversity_number, len(flattened_variations)),
+                replace=False
+            )
+
+            # Replace random samples with diverse ones
+            flattened_variations[replace_indices] = diverse_samples[:len(replace_indices)]
+            variations = flattened_variations.reshape(variations.shape)
+        else:
+            print("!! No Diversity !!")
+
+        return variations, var_labels, [], [], []
+        
+    
     
     def _text_variation_ollama(self, sequences, labels, variation_degree, variation_type, batch_size):
         if self.dry_run:

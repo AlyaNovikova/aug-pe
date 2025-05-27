@@ -4,35 +4,35 @@ feat_ext="stsb-roberta-base-v2"
 # feat_ext="pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb"
 length=1024
 temperature=1.0
-num_seed_samples=5
+num_seed_samples=20
 lookahead_degree=0
-k=4 # number of variations
+k=5 # number of variations
 L=$((k+1))
 init_L=${L}
 num_samples=$((L*num_seed_samples))
 echo generating $num_samples samples
-epochs=10
+epochs=20
 word_var_scale=0
 select_syn_mode=rank
 random_str="_parametrs_len_diversity_summ11"
 
-percentage_of_summaries=0.5
-summaries_model="deepseek-v2.5"
-# summaries_model="llama4"
+percentage_of_summaries=0.0
+# summaries_model="deepseek-v2.5"
+summaries_model="llama4"
 summaries_path="data/mimic/summarized_texts_${summaries_model}.csv"
-diversity_number=2
+diversity_number=30
 length_mean=2487
 length_std=930
 length_min=1200
 length_max=4100
 
 # model_type="deepseek-v2.5"
-# model_type="aravhawk/llama4"
+model_type="llama4:scout"
 # model_type="qwen:72b"
 # model_type="mistral-small3.1"
 # model_type="mistral-small"
 # model_type="mistral-large"
-model_type="gemma3"
+# model_type="gemma3"
 # model_type="gemma3:27b"
 # model_type="deepseek-v2:16b"
 
@@ -50,8 +50,7 @@ else
     batch_size=16
 fi
 
-# mimic_summ_diversity_embed
-result_folder="result/mimic_check/${model_type}_${feat_ext}/perc_of_summ_${percentage_of_summaries}_summ_mod_${summaries_model}_divers_numb_${diversity_number}_len_mean${length_mean}_len_std${length_std}_${num_samples}_n${noise}_L${L}_t${temperature}_${random_str}"
+result_folder="result/mimic_summ_diversity_embed/${model_type}_${feat_ext}/perc_of_summ_${percentage_of_summaries}_summ_mod_${summaries_model}_divers_numb_${diversity_number}_len_mean${length_mean}_len_std${length_std}_${num_samples}_n${noise}_L${L}_t${temperature}_${random_str}"
 
 
 ### load datacheckpoint 

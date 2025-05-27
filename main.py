@@ -64,9 +64,6 @@ def main():
 
     # Generating initial synthetic samples.
     if args.data_checkpoint_path != '':
-        print()
-        print("111111111111111111111")
-        print()
         logging.info(
             f'Loading data checkpoint from {args.data_checkpoint_path}')
         seed_syn_samples, seed_additional_info, sync_labels_counter, sync_labels_indexer = load_data(
@@ -80,13 +77,11 @@ def main():
             raise ValueError('data_checkpoint_step should be >= 0')
         start_t = args.data_checkpoint_step + 1
     else:
-        print()
-        print("222222222222222222")
-        print()
         logging.info('Generating initial samples')
         private_lens_dict = None
         num_seed_samples = int(
             args.num_samples_schedule[0]/args.init_combine_divide_L)
+
         seed_syn_samples, seed_additional_info, sync_labels_counter, all_prefix_prompts = api.text_random_sampling(num_samples=num_seed_samples,
                                                                                                                    prompt_counter=private_labels_counter, lens_dict=private_lens_dict)
         os.makedirs(f'{args.result_folder}/0', exist_ok=True)
@@ -110,7 +105,7 @@ def main():
             model_name=args.feature_extractor,
 
         )
-        print("-----------------------------222-\n\n", len(synthetic_features), "------------------------------\n\n")
+        # print("-----------------------------222-\n\n", len(synthetic_features), "------------------------------\n\n")
 
         # compute_fid(synthetic_features, all_private_features, args.feature_extractor,
         #             folder=args.result_folder,  step=start_t-1, log_online=args.log_online)
@@ -146,7 +141,7 @@ def main():
                     sequences=seed_syn_samples_per_class,  # seed samples
                     additional_info=seed_additional_info_per_class,
                     num_variations_per_sequence=args.init_combine_divide_L-1,  # just do one variation
-                    variation_degree=args.variation_degree_schedule[0]
+                    variation_degree=args.variation_degree_schedule[0], epoch_rate=0,
                 )
                 syn_samples.extend(seed_syn_samples_per_class)  # seed samples
                 for x in new_variants_samples_stacked:  # L-1 variations
@@ -167,6 +162,8 @@ def main():
         if value > 0:
             logging.info(f'initial samples label counter {key}: {value}')
 
+    print("tttttttttt", args.epochs, len(args.num_samples_schedule), start_t)
+    print(range(start_t, len(args.num_samples_schedule)))
     for t in range(start_t, len(args.num_samples_schedule)):
         logging.info(f't={t}')
 
@@ -178,7 +175,8 @@ def main():
                 sequences=syn_samples,
                 additional_info=additional_info,
                 num_variations_per_sequence=args.lookahead_degree,
-                variation_degree=args.variation_degree_schedule[t])
+                variation_degree=args.variation_degree_schedule[t], epoch_rate=(t/len(args.num_samples_schedule)),
+                )
             if args.lookahead_self:
                 packed_samples = np.concatenate((packed_samples,  np.expand_dims(
                     syn_samples, axis=1)), axis=1)  # add the original samples to the variations
@@ -302,7 +300,7 @@ def main():
                     sequences=selected_syn_samples,  # seed samples
                     additional_info=selected_additional_info,
                     num_variations_per_sequence=_num_variations_per_sequence,  # just do one variation
-                    variation_degree=args.variation_degree_schedule[t]
+                    variation_degree=args.variation_degree_schedule[t], epoch_rate=(t/len(args.num_samples_schedule)),
                 )
 
                 for x in new_variants_samples_stacked:
@@ -343,7 +341,7 @@ def main():
                 model_name=args.feature_extractor,
 
             )
-            print("-----------------------------444-\n\n", len(synthetic_features), "------------------------------\n\n")
+            # print("-----------------------------444-\n\n", len(synthetic_features), "------------------------------\n\n")
 
             # compute_fid(synthetic_features, all_private_features, args.feature_extractor,
             #             folder=args.result_folder,  step=t, log_online=args.log_online)

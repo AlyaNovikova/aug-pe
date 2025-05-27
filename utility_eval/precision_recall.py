@@ -46,8 +46,8 @@ class DistanceBlock():
 
     def pairwise_distances(self, U, V):
         """Evaluate pairwise distances between two batches of feature vectors."""
-        # output = pairwise_distances(U, V, n_jobs=24)
-        output = pairwise_distances(U, V, metric='cosine', n_jobs=24)
+        output = pairwise_distances(U, V, n_jobs=24)
+        # output = pairwise_distances(U, V, metric='cosine', n_jobs=24)
         return output
 
 
@@ -156,7 +156,7 @@ class ManifoldEstimator():
 # ----------------------------------------------------------------------------
 
 def knn_precision_recall_features(ref_features, eval_features, nhood_sizes=[3],
-                                  row_batch_size=10000, col_batch_size=50000, num_gpus=1):
+                                  row_batch_size=10000, col_batch_size=50000, num_gpus=4):
     """Calculates k-NN precision and recall for two sets of feature vectors.
 
         Args:

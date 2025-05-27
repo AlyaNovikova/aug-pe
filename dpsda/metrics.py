@@ -247,8 +247,8 @@ def calculate_all_metrics_dict(original_embeddings, synthetic_embeddings, k=3, r
     ref_features = normalize(original_embeddings, axis=1)
     synt_features = normalize(synthetic_embeddings, axis=1)
 
-    fid = calculate_fid(ref_features, synt_features)
-    print("METRICS", "fid2", fid)
+    # fid = calculate_fid(ref_features, synt_features)
+    # print("METRICS", "fid2", fid)
 
     # Compute MAUVE and distribution histograms
     p_feats = synt_features  # feature dimension = 1024
