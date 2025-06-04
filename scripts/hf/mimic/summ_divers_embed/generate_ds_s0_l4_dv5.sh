@@ -1,0 +1,106 @@
+mlm_prob=0.6
+var_type="mimic_rephrase_tone"
+feat_ext="stsb-roberta-base-v2"
+# feat_ext="pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb"
+length=1024
+temperature=1.0
+num_seed_samples=20
+lookahead_degree=0
+k=5 # number of variations
+L=$((k+1))
+init_L=${L}
+num_samples=$((L*num_seed_samples))
+echo generating $num_samples samples
+epochs=20
+word_var_scale=0
+select_syn_mode=rank
+random_str="_parametrs_len_diversity_summ11"
+
+percentage_of_summaries=0.0
+# summaries_model="deepseek-v2.5"
+summaries_model="llama4"
+summaries_path="data/mimic/summarized_texts_${summaries_model}.csv"
+diversity_number=6
+length_mean=2487
+length_std=930
+length_min=1200
+length_max=4100
+
+model_type="deepseek-v2.5"
+# model_type="llama4:scout"
+# model_type="qwen:72b"
+# model_type="mistral-small3.1"
+# model_type="mistral-small"
+# model_type="mistral-large"
+# model_type="gemma3"
+# model_type="gemma3:27b"
+# model_type="deepseek-v2:16b"
+
+noise=0
+args=""
+api="HFGPT"
+feature_extractor_batch_size=1024
+if [ "$model_type" = "gpt2-large" ]; then
+    batch_size=32
+elif [ "$model_type" = "gpt2-medium" ]; then
+    batch_size=64
+elif [ "$model_type" = "gpt2" ]; then
+    batch_size=128
+else
+    batch_size=16
+fi
+
+result_folder="result/mimic_summ_diversity_embed/${model_type}_${feat_ext}/perc_of_summ_${percentage_of_summaries}_summ_mod_${summaries_model}_divers_numb_${diversity_number}_len_mean${length_mean}_len_std${length_std}_${num_samples}_n${noise}_L${L}_t${temperature}_${random_str}"
+
+
+### load datacheckpoint 
+data_checkpoint_args=""
+for  (( iter=0; iter<=epochs; iter++ ))
+do
+train_file=${result_folder}/${iter}/samples.csv
+if [ -e "$train_file" ]; then
+    echo "$train_file does exist."
+    # load from  data checkpoint
+    data_checkpoint_args="--data_checkpoint_step ${iter} --data_checkpoint_path ${result_folder}/${iter}/samples.csv"
+else
+    echo "$train_file does not exist."
+fi
+done
+echo load data from ${data_checkpoint_args} ${args}
+
+### run PE
+python main.py ${args} ${data_checkpoint_args} \
+--train_data_file "data/mimic/train.csv" \
+--dataset "mimic" \
+--api ${api} \
+--noise ${noise} \
+--model_type ${model_type} \
+--percentage_of_summaries ${percentage_of_summaries} \
+--summaries_path ${summaries_path} \
+--diversity_number ${diversity_number} \
+--length_mean ${length_mean} \
+--length_std ${length_std} \
+--length_max ${length_max} \
+--length_min ${length_min} \
+--do_sample  \
+--length ${length} \
+--random_sampling_batch_size ${batch_size} \
+--variation_batch_size ${batch_size} \
+--fp16 \
+--temperature ${temperature} \
+--select_syn_mode ${select_syn_mode} \
+--num_samples_schedule ${num_samples} \
+--combine_divide_L ${L} \
+--init_combine_divide_L ${init_L} \
+--variation_degree_schedule ${mlm_prob} \
+--lookahead_degree ${lookahead_degree} \
+--feature_extractor_batch_size ${feature_extractor_batch_size} \
+--epochs ${epochs} \
+--use_subcategory \
+--feature_extractor ${feat_ext} \
+--mlm_probability ${mlm_prob} \
+--variation_type ${var_type} \
+--result_folder ${result_folder} \
+--log_online \
+--train_data_embeddings_file "result/embeddings/${feat_ext}/mimic_train_all.embeddings.npz" 
+

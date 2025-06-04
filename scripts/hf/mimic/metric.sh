@@ -1,12 +1,24 @@
 
-feat_ext="sentence-t5-base"
-epochs=10
-model_folder="mistral_small/70_n0_L7_initL7_var0_mimic_rephrase_tone_rank_len1024var0_t1.0__ollama_rephrase_pr_01"
-result_folder="result/mimic_play_metric/${model_folder}"
+feat_ext="stsb-roberta-base-v2"
+epochs=13
+model_folder="mistral-small3.1_stsb-roberta-base-v2/perc_of_summ_0.0_summ_mod_deepseek-v2.5_divers_numb_0_len_mean2487_len_std930_120_n0_L6_t1.0__parametrs_len_diversity_summ11"
+result_folder="result/mimic_summ_diversity_embed/${model_folder}"
 min_token_threshold=50
 
-pip install bert_score
-pip install rouge-score
+# llama4:scout_stsb-roberta-base-v2/perc_of_summ_0.7_summ_mod_llama4_divers_numb_0_len_mean2487_len_std930_120_n0_L6_t1.0__parametrs_len_diversity_summ11
+# llama4:scout_stsb-roberta-base-v2/perc_of_summ_0.7_summ_mod_deepseek-v2.5_divers_numb_0_len_mean2487_len_std930_120_n0_L6_t1.0__parametrs_len_diversity_summ11
+# llama4:scout_stsb-roberta-base-v2/perc_of_summ_0.0_summ_mod_llama4_divers_numb_30_len_mean2487_len_std930_120_n0_L6_t1.0__parametrs_len_diversity_summ11
+# llama4:scout_stsb-roberta-base-v2/perc_of_summ_0.0_summ_mod_llama4_divers_numb_6_len_mean2487_len_std930_120_n0_L6_t1.0__parametrs_len_diversity_summ11
+# llama4:scout_stsb-roberta-base-v2/perc_of_summ_0.0_summ_mod_llama4_divers_numb_0_len_mean2487_len_std930_120_n0_L6_t1.0__parametrs_len_diversity_summ11
+# llama4:scout_stsb-roberta-base-v2/perc_of_summ_0.0_summ_mod_deepseek-v2.5_divers_numb_0_len_mean2487_len_std930_120_n0_L6_t1.0__parametrs_len_diversity_summ11
+
+
+# mistral-small3.1_stsb-roberta-base-v2/perc_of_summ_0.7_summ_mod_llama4_divers_numb_0_len_mean2487_len_std930_120_n0_L6_t1.0__parametrs_len_diversity_summ11
+# mistral-small3.1_stsb-roberta-base-v2/perc_of_summ_0.7_summ_mod_deepseek-v2.5_divers_numb_0_len_mean2487_len_std930_120_n0_L6_t1.0__parametrs_len_diversity_summ11
+
+# mistral-small3.1_stsb-roberta-base-v2/perc_of_summ_0.0_summ_mod_llama4_divers_numb_0_len_mean2487_len_std930_120_n0_L6_t1.0__parametrs_len_diversity_summ11
+# mistral-small3.1_stsb-roberta-base-v2/perc_of_summ_0.0_summ_mod_deepseek-v2.5_divers_numb_0_len_mean2487_len_std930_120_n0_L6_t1.0__parametrs_len_diversity_summ11
+
 
 CUDA_VISIBLE_DEVICES=0 python metric.py \
     --private_data_size 100 \
