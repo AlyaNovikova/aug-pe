@@ -71,7 +71,7 @@ class HFAPI(API):
         self.length_std = length_std
         self.length_min = length_min
         self.length_max = length_max
-
+  
         if model_name_or_path=="gpt2":
             self.use_ollama = False
         else:

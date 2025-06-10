@@ -95,24 +95,24 @@ def main():
     # save initial synthetic samples.
     log_samples(samples=seed_syn_samples, additional_info=seed_additional_info,
                 folder=f'{args.result_folder}/{start_t-1}')
-    if args.compute_fid:
+    # if args.compute_fid:
 
-        # print("-----------------------------111-\n\n", seed_syn_samples, "------------------------------\n\n")
+    #     print("-----------------------------111-\n\n", seed_syn_samples, "------------------------------\n\n")
 
-        synthetic_features = extract_features(
-            data=seed_syn_samples,
-            batch_size=args.feature_extractor_batch_size,
-            model_name=args.feature_extractor,
+    #     synthetic_features = extract_features(
+    #         data=seed_syn_samples,
+    #         batch_size=args.feature_extractor_batch_size,
+    #         model_name=args.feature_extractor,
 
-        )
-        # print("-----------------------------222-\n\n", len(synthetic_features), "------------------------------\n\n")
+    #     )
+    #     # print("-----------------------------222-\n\n", len(synthetic_features), "------------------------------\n\n")
 
-        # compute_fid(synthetic_features, all_private_features, args.feature_extractor,
-        #             folder=args.result_folder,  step=start_t-1, log_online=args.log_online)
+    #     # compute_fid(synthetic_features, all_private_features, args.feature_extractor,
+    #     #             folder=args.result_folder,  step=start_t-1, log_online=args.log_online)
         
-        log_metrics(all_private_samples, seed_syn_samples,  
-                    all_private_features, synthetic_features,
-                        step=start_t-1, log_online=args.log_online, result_folder=args.result_folder, epoch=start_t-1)
+    #     log_metrics(all_private_samples, seed_syn_samples,  
+    #                 all_private_features, synthetic_features,
+    #                     step=start_t-1, log_online=args.log_online, result_folder=args.result_folder, epoch=start_t-1)
 
     if args.init_combine_divide_L > 1:
         parent_directory = os.path.dirname(args.data_checkpoint_path)
@@ -153,6 +153,25 @@ def main():
                     args.init_combine_divide_L
             log_samples(samples=syn_samples, additional_info=additional_info,
                         folder=f'{args.result_folder}/-1')
+            
+            if args.compute_fid:
+
+                print("-----------------------------111-\n\n", "------------------------------\n\n")
+
+                synthetic_features = extract_features(
+                    data=syn_samples,
+                    batch_size=args.feature_extractor_batch_size,
+                    model_name=args.feature_extractor,
+
+                )
+                # print("-----------------------------222-\n\n", len(synthetic_features), "------------------------------\n\n")
+
+                # compute_fid(synthetic_features, all_private_features, args.feature_extractor,
+                #             folder=args.result_folder,  step=start_t-1, log_online=args.log_online)
+                
+                log_metrics(all_private_samples, syn_samples,  
+                            all_private_features, synthetic_features,
+                                step=start_t-1, log_online=args.log_online, result_folder=args.result_folder, epoch=start_t-1)
     else:
         syn_samples, additional_info = seed_syn_samples, seed_additional_info
 
@@ -192,6 +211,7 @@ def main():
 
         # iterate over # lookahead_degree variations.
         for i in range(packed_samples.shape[1]):
+            print("packed_samples")
             sub_packed_features = extract_features(
                 data=packed_samples[:, i],
                 batch_size=args.feature_extractor_batch_size,
@@ -199,6 +219,8 @@ def main():
 
             )
             packed_features.append(sub_packed_features)
+
+        print("before mean", len(packed_features))
 
         # take the averaged embedding for each sequence..
         packed_features = np.mean(packed_features, axis=0)
@@ -280,6 +302,9 @@ def main():
                 # logging.info(f'selected_syn_samples shape {len(selected_syn_samples)} label {len(selected_additional_info)}')
                 assert len(selected_syn_samples) == len(
                     selected_additional_info)
+                
+                print("selected_syn_samples")
+                print("selected_syn_samples", len(selected_syn_samples))
 
                 new_variants_samples = []
                 if args.combine_divide_L == 1:
@@ -309,21 +334,29 @@ def main():
                 # logging.info(f'new_variants_samples shape {len(new_variants_samples)} label {len(new_variants_additional_info)}')
 
                 new_syn_samples.extend(new_variants_samples)
+
+                print("new_syn_samples")
+                print(len(new_syn_samples))
+
                 new_additional_info.extend(new_variants_additional_info)
                 sync_labels_counter[class_] = len(
                     new_variants_samples)  # update class size
 
             if args.save_syn_mode == 'selected':
+                print('selected', len(all_selected_samples), len(selected_syn_samples))
                 all_selected_samples.extend(selected_syn_samples)
                 all_selected_additional_info.extend(selected_additional_info)
+                print('selected', len(all_selected_samples), len(selected_syn_samples))
             elif args.save_syn_mode == 'one_var':
                 all_selected_samples.extend(new_variants_samples_stacked[:, 0])
                 all_selected_additional_info.extend(selected_additional_info)
             elif args.save_syn_mode == 'all':
+                print('all', len(all_selected_samples), len(new_variants_samples))
                 all_selected_samples.extend(
                     new_variants_samples)  # all ---  L times size
                 all_selected_additional_info.extend(
                     new_variants_additional_info)
+                print('all',  len(all_selected_samples), len(new_variants_samples))
 
             current_idx += public_features.shape[0]
 
@@ -333,10 +366,10 @@ def main():
                                additional_info=all_selected_additional_info, folder=f'{args.result_folder}/{t}')
 
         if args.compute_fid:
-            # print("-----------------------------333-\n\n", all_selected_samples, "------------------------------\n\n")
+            print("-----------------------------333-\n\n", len(all_selected_samples), len(syn_samples), "------------------------------\n\n")
 
             synthetic_features = extract_features(
-                data=all_selected_samples,
+                data=syn_samples,
                 batch_size=args.feature_extractor_batch_size,
                 model_name=args.feature_extractor,
 
@@ -345,7 +378,7 @@ def main():
 
             # compute_fid(synthetic_features, all_private_features, args.feature_extractor,
             #             folder=args.result_folder,  step=t, log_online=args.log_online)
-            log_metrics(all_private_samples, all_selected_samples, 
+            log_metrics(all_private_samples, syn_samples, 
                         all_private_features, synthetic_features,
                         step=t, log_online=args.log_online, result_folder=args.result_folder, epoch=t)
 

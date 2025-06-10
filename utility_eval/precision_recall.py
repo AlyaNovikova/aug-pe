@@ -260,8 +260,8 @@ def main():
     synthetic_labels = ["\t".join(
         [line[idx] for idx in label_column_index]) for line in syn_data['train']]
 
-    model = SentenceTransformer(args.model_name_or_path)
-    model.eval()
+    # model = SentenceTransformerargs.model_name_or_path
+    # model.eval()
 
     with torch.no_grad():
         synthetic_embeddings = []

@@ -1,12 +1,13 @@
 mlm_prob=0.6
 var_type="mimic_rephrase_tone"
+# feat_ext="UFNLP/gatortron-base"
 feat_ext="stsb-roberta-base-v2"
 # feat_ext="pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb"
 length=1024
 temperature=1.0
-num_seed_samples=5
+num_seed_samples=30
 lookahead_degree=0
-k=4 # number of variations
+k=3 # number of variations
 L=$((k+1))
 init_L=${L}
 num_samples=$((L*num_seed_samples))
@@ -14,9 +15,9 @@ echo generating $num_samples samples
 epochs=10
 word_var_scale=0
 select_syn_mode=rank
-random_str="_parametrs_len_diversity_summ11"
+random_str="_searching_errors3"
 
-percentage_of_summaries=0.5
+percentage_of_summaries=0.0
 summaries_model="deepseek-v2.5"
 # summaries_model="llama4"
 summaries_path="data/mimic/summarized_texts_${summaries_model}.csv"

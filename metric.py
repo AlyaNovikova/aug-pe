@@ -22,6 +22,7 @@ from datasets import load_dataset
 from dpsda.metrics import calculate_fid, num_tokens_from_string, get_lengths, plot_length_distributions, plot_metrics
 
 from dpsda.logging import *
+from dpsda.feature_extractor import extract_features
 from utility_eval.compute_mauve import *
 from utility_eval.precision_recall import *
 from apis.utils import set_seed 
@@ -30,7 +31,7 @@ import time
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
-def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_size, private_data_size, num_run, k, dataset="yelp", min_token_threshold=100, epoch=None, 
+def eval_one_file(syn_fname, all_original_embeddings, model_name_or_path, csv_fname, batch_size, private_data_size, num_run, k, dataset="yelp", min_token_threshold=100, epoch=None, 
                   real_file="", synthetic_folder=""):
     syn_data = load_dataset("csv", data_files=syn_fname)
 
@@ -48,19 +49,33 @@ def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_si
             if len_d > min_token_threshold:
                 synthetic_data.append(d)
     elif dataset == "mimic":
+        print("This is mimic")
         synthetic_data = [d for d in syn_data['train']['text']]
+        print("--- syn data len 1 ---", (len(synthetic_data)))
+        df = pd.read_csv(syn_fname)
+        print(len(df))  
+        synthetic_data = df['text'].tolist()
+        print("--- syn data len 2 ---", (len(synthetic_data)))
+
     else:
         synthetic_data = [d for d in syn_data['train']['text']]
-    print("--- syn data len %d  ---" % (len(synthetic_data)))
+    print("--- syn data len ---", (len(synthetic_data)))
 
     start_time = time.time()
-    with torch.no_grad():
-        synthetic_embeddings = []
-        for i in tqdm(range(len(synthetic_data) // batch_size+1)):
-            embeddings = model.encode(
-                synthetic_data[i * batch_size:(i + 1) * batch_size])
-            synthetic_embeddings.append(embeddings)
-        all_synthetic_embeddings = np.concatenate(synthetic_embeddings)
+
+    all_synthetic_embeddings = extract_features(
+            data=synthetic_data,
+            batch_size=1024,
+            model_name=model_name_or_path,
+        )
+
+    # with torch.no_grad():
+    #     synthetic_embeddings = []
+    #     for i in tqdm(range(len(synthetic_data) // batch_size+1)):
+    #         embeddings = model.encode(
+    #             synthetic_data[i * batch_size:(i + 1) * batch_size])
+    #         synthetic_embeddings.append(embeddings)
+    #     all_synthetic_embeddings = np.concatenate(synthetic_embeddings)
 
     print("--- %s seconds for computing emb ---" % (time.time() - start_time))
 
@@ -96,12 +111,13 @@ def eval_one_file(syn_fname, all_original_embeddings, model, csv_fname, batch_si
             df = pd.read_csv(real_file)  
             real_text_list = df["text"].tolist()
 
-            metrics = compare_text_sets(real_text_list, synthetic_data, original_embeddings, synthetic_embeddings)
-
             real_lengths = get_lengths(real_text_list)
             synth_lengths = get_lengths(synthetic_data)
-            plots_folder = os.path.join(synthetic_folder, "plots_metrics")
+            plots_folder = os.path.join(synthetic_folder, "plots_metrics_inference")
             os.makedirs(plots_folder, exist_ok=True)
+
+            metrics = compare_text_sets(real_text_list, synthetic_data, original_embeddings, synthetic_embeddings, result_folder=plots_folder, epoch=epoch)
+
             plot_length_distributions(real_lengths, synth_lengths, filename=os.path.join(plots_folder, f"length_distribution_{epoch}.png"))
 
 
@@ -207,8 +223,8 @@ def main():
                notes=args.wandb_notes,
                config=vars(args))
     
-    model = SentenceTransformer(args.model_name_or_path)
-    model.eval()
+    # model = SentenceTransformer(args.model_name_or_path)
+    # model.eval()
 
     dataset2embedding_file = {
         "yelp": f"result/embeddings/{args.model_name_or_path}/yelp_train_all.embeddings.npz",
@@ -232,7 +248,7 @@ def main():
                 args.synthetic_file), 'eval_metric.csv')
             metrics = eval_one_file(syn_fname=args.synthetic_file, 
                                   all_original_embeddings=all_original_embeddings, 
-                                  model=model,
+                                  model=args.model_name_or_path,
                                   csv_fname=csv_fname, 
                                   batch_size=args.batch_size,
                                   private_data_size=args.private_data_size,
@@ -273,7 +289,7 @@ def main():
                 print(f'Processing {csv_fname}')
                 metrics = eval_one_file(syn_fname=syn_data_file, 
                                       all_original_embeddings=all_original_embeddings, 
-                                      model=model,
+                                      model=args.model_name_or_path,
                                       csv_fname=csv_fname, 
                                       batch_size=args.batch_size,
                                       private_data_size=args.private_data_size,

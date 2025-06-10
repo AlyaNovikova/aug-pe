@@ -410,9 +410,12 @@ def plot_embeddings(real_features, synthetic_features, method="tsne", title="Emb
 
 def compare_text_sets(real_texts, synthetic_texts, emb_real, emb_synth, result_folder="", epoch=0):
 
-    plots_folder = os.path.join(result_folder, "plots_metrics")
-    os.makedirs(plots_folder, exist_ok=True)
-    plot_embeddings(emb_real, emb_synth, filename=os.path.join(plots_folder, f"embeddings_{epoch}.png"), n_components=3, method="umap")
+    print("All length")
+    print(len(real_texts), len(synthetic_texts), len(emb_real), len(emb_synth))
+
+    # plots_folder = os.path.join(result_folder, "plots_metrics")
+    # os.makedirs(plots_folder, exist_ok=True)
+    plot_embeddings(emb_real, emb_synth, filename=os.path.join(result_folder, f"embeddings_{epoch}.png"), n_components=3, method="umap")
 
     metrics = {}
 
