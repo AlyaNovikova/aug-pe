@@ -30,7 +30,7 @@ class HFAPI(API):
                  random_sampling_batch_size, num_beams, dry_run,
                  variation_batch_size, 
                  percentage_of_summaries, summaries_path, 
-                 diversity_number, 
+                #  diversity_number, 
                  length_mean, length_std, length_min, length_max,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -66,7 +66,7 @@ class HFAPI(API):
 
         self.percentage_of_summaries = percentage_of_summaries
         self.summaries_path = summaries_path
-        self.diversity_number = diversity_number
+        # self.diversity_number = diversity_number
         self.length_mean = length_mean
         self.length_std = length_std
         self.length_min = length_min
@@ -79,7 +79,7 @@ class HFAPI(API):
 
         if self.use_ollama:
             try:
-                response = requests.get('http://localhost:11434/api/tags')
+                response = requests.get('http://localhost:11435/api/tags')
                 if response.status_code != 200:
                     raise ConnectionError("Ollama server not responding")
             except Exception as e:
@@ -87,7 +87,7 @@ class HFAPI(API):
                 print("Make sure 'ollama serve' is running in another terminal")
                 exit(1)
 
-            self.client = ollama.Client(host='http://localhost:11434')
+            self.client = ollama.Client(host='http://localhost:11435')
 
             response = self.client.generate(
                     model=model_name_or_path,
@@ -173,7 +173,7 @@ class HFAPI(API):
         
         parser.add_argument("--percentage_of_summaries", type=float, default=0.7)
         parser.add_argument("--summaries_path", type=str, default="data/mimic/summarized_texts.csv")
-        parser.add_argument("--diversity_number", type=int, default=0)
+        # parser.add_argument("--diversity_number", type=int, default=0)
         parser.add_argument("--length_mean", type=int, default=0)
         parser.add_argument("--length_std", type=int, default=0)
         parser.add_argument("--length_min", type=int, default=0)
@@ -200,14 +200,20 @@ class HFAPI(API):
 
             use_summary = random.random() < self.percentage_of_summaries
 
+            if np.random.random() < 0.25:
+                target_len = np.random.randint(self.length_min, self.length_max + 1)
+            else:
+                target_len = max(1, round(np.random.normal(self.length_mean, self.length_std)))
+            target_len = min(target_len, self.length_max)
+
             if use_summary and len(summaries) > 0:
                 # print("\n ____USE summaries____ ", len(summaries), "\n")
                 summary = random.choice(summaries)
                 template = random.choice(INSTRUCTION_TEMPLATES_WITH_SUMMARIES)
-                prompt = template(doc_type, specialty, style, labels_str, summary)
+                prompt = template(doc_type, specialty, style, labels_str, target_len, summary)
             else:
                 template = random.choice(INSTRUCTION_TEMPLATES)
-                prompt = template(doc_type, specialty, style, labels_str)
+                prompt = template(doc_type, specialty, style, labels_str, target_len)
             
             prompts.append(prompt.strip())
         
@@ -347,7 +353,7 @@ class HFAPI(API):
                     model=self.model_type,
                     prompt=prompt,
                     options={'temperature': self.temperature, 
-                             'num_predict': target_len,
+                             'num_predict': target_len + 500,
                              }
                 )
                 generated_text = response["response"] 
@@ -424,27 +430,26 @@ class HFAPI(API):
     
         variations = np.stack(variations, axis=1)
 
-        # If diversity_number is set, replace random samples with diverse ones
-        if self.diversity_number > 0 and epoch_rate < 0.7:
-            print("!!Diversity!!")
-            diverse_samples, labels, _, _ = self.text_random_sampling(num_samples=self.diversity_number,
-                                                                      prompt_counter=Counter({'mimic': 100}), 
-                                                                      lens_dict=None)
+        # if self.diversity_number > 0 and epoch_rate < 0.7:
+        #     print("!!Diversity!!")
+        #     diverse_samples, labels, _, _ = self.text_random_sampling(num_samples=self.diversity_number,
+        #                                                               prompt_counter=Counter({'mimic': 100}), 
+        #                                                               lens_dict=None)
     
-            flattened_variations = variations.reshape(-1, *variations.shape[2:])
+        #     flattened_variations = variations.reshape(-1, *variations.shape[2:])
 
-            # Randomly select indices to replace
-            replace_indices = np.random.choice(
-                len(flattened_variations),
-                size=min(self.diversity_number, len(flattened_variations)),
-                replace=False
-            )
+        #     # Randomly select indices to replace
+        #     replace_indices = np.random.choice(
+        #         len(flattened_variations),
+        #         size=min(self.diversity_number, len(flattened_variations)),
+        #         replace=False
+        #     )
 
-            # Replace random samples with diverse ones
-            flattened_variations[replace_indices] = diverse_samples[:len(replace_indices)]
-            variations = flattened_variations.reshape(variations.shape)
-        else:
-            print("!! No Diversity !!")
+        #     # Replace random samples with diverse ones
+        #     flattened_variations[replace_indices] = diverse_samples[:len(replace_indices)]
+        #     variations = flattened_variations.reshape(variations.shape)
+        # else:
+        #     print("!! No Diversity !!")
 
         return variations, var_labels, [], [], []
         
@@ -584,6 +589,15 @@ class HFAPI(API):
                 len(DISCHARGE_LETTER_STYLES))]
             rewrite_template = DISCHARGE_REWRITE_PROMPTS[random.randrange(
                 len(DISCHARGE_REWRITE_PROMPTS))]
+            
+            # if np.random.random() < 0.25:
+            #     target_len = np.random.randint(self.length_min, self.length_max + 1)
+            # else:
+            #     target_len = max(1, round(np.random.normal(self.length_mean, self.length_std)))
+            # target_len = min(target_len, self.length_max)
+
             prompt = rewrite_template.format(style=selected_style, text=sequence)
+            # print("REPHRASE mimic_rephrase_tone")
+            # print(prompt)
 
         return prompt

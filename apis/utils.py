@@ -105,7 +105,7 @@ DISCHARGE_LETTER_STYLES = [
 DISCHARGE_REWRITE_PROMPTS = [
     "Rephrase this discharge letter {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]:\n{text}",
     "Rewrite this discharge summary {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Preserve the original structure and section headers verbatim, but modifying the clinical content where appropriate:\n{text}",
-    "Rephrase this hospital discharge {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Maintain identical section organization while varying the medical details:\n{text}",
+    "Rephrase this hospital discharge letter {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Maintain identical section organization while varying the medical details:\n{text}",
     "Rewrite this discharge document {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. You may reword clinical content within sections:\n{text}",
     "Rephrase this discharge note {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. And modify the narrative portions:\n{text}"
 ]

@@ -41,7 +41,8 @@ SPECIALTIES = [
 ]
 
 INSTRUCTION_TEMPLATES = [
-        lambda doc, spec, sty, lbl: f"""Generate a synthetic {doc} for a {spec} case {sty}. 
+        lambda doc, spec, sty, lbl, length: f"""Generate a synthetic {doc} for a {spec} case {sty}. 
+        Write a long text, use approximatly {length} words.
         Generate it in the exact style of medical discharge letter.
         The text should be realistic and resemble actual medical documentation.
         Replace all PHI and sensitive data with labels from this list in double brackets [[label]]: {lbl}. 
@@ -60,8 +61,8 @@ INSTRUCTION_TEMPLATES = [
     
 
 
-        lambda doc, spec, sty, lbl: f"""Write a synthetic {doc} in narrative form {sty} for a {spec} patient. 
-        Generate it in the exact style of medical discharge letter.
+        lambda doc, spec, sty, lbl, length: f"""Write a synthetic {doc} in narrative form {sty} for a {spec} patient. 
+        Generate it in the exact style of medical discharge letter. Write a long text, use approximatly {length} words.
     Don't structure it too much. It should be a natural medical live recording.
     Include and Replace all PHI/sensitive data with labels from this list in double brackets like this [[LABEL]], use only this labels: {lbl}. 
     Begin with patient presentation, then describe:
@@ -77,8 +78,8 @@ INSTRUCTION_TEMPLATES = [
 
     """,
 
-        lambda doc, spec, sty, lbl: f"""Generate a synthetic {doc} for a {spec} case {sty} following medical discharge letter structure.
-
+        lambda doc, spec, sty, lbl, length: f"""Generate a synthetic {doc} for a {spec} case {sty} following medical discharge letter structure.
+Write a long text, use approximatly {length} words.
     REQUIRED SECTIONS (maybe not all of them and you can add more different) (separated by newlines):
     1. Patient header (Name, Unit#, Admission/Discharge dates, DOB, Sex, Service)
     2. Allergies
@@ -112,8 +113,8 @@ INSTRUCTION_TEMPLATES = [
     - Use appropriate medical terminology
     - Make [[TAGS]] blend naturally into text""",
 
-        lambda doc, spec, sty, lbl: f"""Create a {doc} for {spec} {sty} that perfectly mimics medical discharge letter documentation style.
-
+        lambda doc, spec, sty, lbl, length: f"""Create a {doc} for {spec} {sty} that perfectly mimics medical discharge letter documentation style.
+Write a long text, use approximatly {length} words.
     You can use this DOCUMENT STRUCTURE or you can change it, do in a medical discharge letter style:
     1. HEADER SECTION (demographics with name, date and so on tags)
     2. Chief Complaint (1-2 sentences)
@@ -134,8 +135,8 @@ INSTRUCTION_TEMPLATES = [
     - Newline (\n) between every section
     - Maintain natural clinical narrative flow""",
 
-        lambda doc, spec, sty, lbl: f"""Generate a {doc} for {spec} {sty} adhering strictly to medical discharge letter conventions.
-
+        lambda doc, spec, sty, lbl, length : f"""Generate a {doc} for {spec} {sty} adhering strictly to medical discharge letter conventions.
+Write a long text, use approximatly {length} words.
     You can write with some of the following sections:
     • Patient header with name, age and so on
     • Chief Complaint section
@@ -159,8 +160,8 @@ INSTRUCTION_TEMPLATES = [
 
 
 INSTRUCTION_TEMPLATES_WITH_SUMMARIES = [
-    lambda doc, spec, sty, lbl, summary: f"""You are writing a synthetic {doc} for a {spec} patient in the style of a medical discharge letter.
-
+    lambda doc, spec, sty, lbl, length, summary: f"""You are writing a synthetic {doc} for a {spec} patient in the style of a medical discharge letter.
+Write a long text, use approximatly {length} words.
     BEGINNING SUMMARY (REAL, FOR REFERENCE):
     ---
     {summary}
@@ -182,8 +183,8 @@ INSTRUCTION_TEMPLATES_WITH_SUMMARIES = [
     Tone: {sty}""",
 
 
-    lambda doc, spec, sty, lbl, summary: f"""Write a detailed, narrative-style synthetic {doc} for a {spec} case, using the real summary below as a guide:
-
+    lambda doc, spec, sty, lbl, length, summary: f"""Write a detailed, narrative-style synthetic {doc} for a {spec} case, using the real summary below as a guide:
+Write a long text, use approximatly {length} words.
     REAL SUMMARY:
     ---
     {summary}
@@ -211,8 +212,8 @@ INSTRUCTION_TEMPLATES_WITH_SUMMARIES = [
     - Include at least 8 different [[PHI]] placeholders throughout""",
 
 
-    lambda doc, spec, sty, lbl, summary: f"""Generate a synthetic {doc} in the style of a professional medical discharge letter for a {spec} case.
-
+    lambda doc, spec, sty, lbl, length, summary: f"""Generate a synthetic {doc} in the style of a professional medical discharge letter for a {spec} case.
+Write a long text, use approximatly {length} words.
     Below is a real discharge summary:
     ---
     {summary}
@@ -233,8 +234,8 @@ INSTRUCTION_TEMPLATES_WITH_SUMMARIES = [
     Tone should be: {sty}""",
 
 
-        lambda doc, spec, sty, lbl, summary: f"""Simulate a full medical discharge encounter as a synthetic {doc} for a {spec} case, written in {sty}.
-
+        lambda doc, spec, sty, lbl, length, summary: f"""Simulate a full medical discharge encounter as a synthetic {doc} for a {spec} case, written in {sty}.
+Write a long text, use approximatly {length} words.
     REAL CLINICAL SUMMARY (USED AS A BACKDROP):
     ---
     {summary}
@@ -257,8 +258,8 @@ INSTRUCTION_TEMPLATES_WITH_SUMMARIES = [
     - Follow-up Instructions""",
 
 
-    lambda doc, spec, sty, lbl, summary: f"""Generate a synthetic {doc} for a {spec} case {sty}, using the exact style of a real medical discharge letter.
-
+    lambda doc, spec, sty, lbl, length, summary: f"""Generate a synthetic {doc} for a {spec} case {sty}, using the exact style of a real medical discharge letter.
+Write a long text, use approximatly {length} words.
     Your task is to reconstruct a **full clinical case** from this short summary.
     USE THIS REAL SUMMARY AS YOUR GUIDE:
     ---

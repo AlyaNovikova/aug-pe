@@ -5,7 +5,7 @@ feat_ext="stsb-roberta-base-v2"
 # feat_ext="pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb"
 length=1024
 temperature=1.0
-num_seed_samples=30
+num_seed_samples=29
 lookahead_degree=0
 k=3 # number of variations
 L=$((k+1))
@@ -15,13 +15,13 @@ echo generating $num_samples samples
 epochs=10
 word_var_scale=0
 select_syn_mode=rank
-random_str="_searching_errors3"
+random_str="_searching_errors_len4"
 
 percentage_of_summaries=0.0
 summaries_model="deepseek-v2.5"
 # summaries_model="llama4"
 summaries_path="data/mimic/summarized_texts_${summaries_model}.csv"
-diversity_number=2
+diversity_percentage=0.05
 length_mean=2487
 length_std=930
 length_min=1200
@@ -52,7 +52,7 @@ else
 fi
 
 # mimic_summ_diversity_embed
-result_folder="result/mimic_check/${model_type}_${feat_ext}/perc_of_summ_${percentage_of_summaries}_summ_mod_${summaries_model}_divers_numb_${diversity_number}_len_mean${length_mean}_len_std${length_std}_${num_samples}_n${noise}_L${L}_t${temperature}_${random_str}"
+result_folder="result/mimic_check/${model_type}_${feat_ext}/perc_of_summ_${percentage_of_summaries}_summ_mod_${summaries_model}_divers_perc_${diversity_percentage}_len_mean${length_mean}_len_std${length_std}_${num_samples}_n${noise}_L${L}_t${temperature}_${random_str}"
 
 
 ### load datacheckpoint 
@@ -79,7 +79,7 @@ python main.py ${args} ${data_checkpoint_args} \
 --model_type ${model_type} \
 --percentage_of_summaries ${percentage_of_summaries} \
 --summaries_path ${summaries_path} \
---diversity_number ${diversity_number} \
+--diversity_percentage ${diversity_percentage} \
 --length_mean ${length_mean} \
 --length_std ${length_std} \
 --length_max ${length_max} \

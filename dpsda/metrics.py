@@ -37,7 +37,7 @@ print(nltk.data.path)
 def get_tokenizer(language='english', backend='nltk'):
     if backend == 'nltk':
         nltk.download('punkt', quiet=True)
-        # nltk.download('punkt_tab')
+        nltk.download('punkt_tab')
 
         def tokenizer(text):
             return nltk.word_tokenize(text, language=language)
@@ -407,6 +407,12 @@ def plot_embeddings(real_features, synthetic_features, method="tsne", title="Emb
     plt.savefig(filename)
     plt.close()
 
+from textstat import flesch_reading_ease
+import spacy
+from gensim import corpora, models
+from transformers import GPT2LMHeadModel, GPT2TokenizerFast
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.decomposition import LatentDirichletAllocation
 
 def compare_text_sets(real_texts, synthetic_texts, emb_real, emb_synth, result_folder="", epoch=0):
 
@@ -425,6 +431,119 @@ def compare_text_sets(real_texts, synthetic_texts, emb_real, emb_synth, result_f
     metrics.update(calculate_text_metrics_dict(real_texts, synthetic_texts, tokenizer))
     metrics.update(calculate_all_metrics_dict(emb_real, emb_synth, real_texts=real_texts, synthetic_texts=synthetic_texts))
     
+
+    def compute_readability(texts):
+        scores = [flesch_reading_ease(text) for text in texts]
+        return np.mean(scores), np.std(scores)
+    
+    real_readability_mean, real_readability_std = compute_readability(real_texts)
+    synth_readability_mean, synth_readability_std = compute_readability(synthetic_texts)
+
+    metrics['readability_mean_diff'] = np.abs(real_readability_mean - synth_readability_mean)
+    metrics['readability_std_diff'] = np.abs(real_readability_std - synth_readability_std)
+
+    # --- 3. Topic Modeling (LDA) ---
+    def compute_topic_similarity(texts1, texts2, n_topics=5):
+        vectorizer = CountVectorizer(max_df=0.95, min_df=2, stop_words='english')
+        corpus = vectorizer.fit_transform(texts1 + texts2)
+        lda = LatentDirichletAllocation(n_components=n_topics, random_state=42)
+        lda.fit(corpus)
+        
+        # Compare topic distributions (Hellinger distance)
+        topic_dist1 = lda.transform(vectorizer.transform(texts1)).mean(axis=0)
+        topic_dist2 = lda.transform(vectorizer.transform(texts2)).mean(axis=0)
+        hellinger_dist = np.sqrt(0.5 * np.sum((np.sqrt(topic_dist1) - np.sqrt(topic_dist2)) ** 2))
+        return hellinger_dist
+    
+    metrics['topic_hellinger_distance'] = compute_topic_similarity(real_texts, synthetic_texts)
+
+    # --- 4. Perplexity (GPT-2) ---
+    def compute_perplexity(texts, model, tokenizer):
+        perplexities = []
+        device = model.device
+
+        for text in texts:
+            inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+            inputs = {k: v.to(device) for k, v in inputs.items()}  # Move inputs to model's device
+            with torch.no_grad():  # Disable gradient calculation for speed
+                loss = model(**inputs, labels=inputs["input_ids"]).loss
+            perplexities.append(torch.exp(loss).item())
+            
+        return np.mean(perplexities)
+    
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    perplexity_model = GPT2LMHeadModel.from_pretrained("gpt2").to(device)
+    perplexity_tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+    
+    metrics['real_perplexity'] = compute_perplexity(real_texts, perplexity_model, perplexity_tokenizer)
+    metrics['synth_perplexity'] = compute_perplexity(synthetic_texts, perplexity_model, perplexity_tokenizer)
+
+    return metrics
+
+def compare_text_sets_top(real_texts, synthetic_texts, emb_real, emb_synth, result_folder="", epoch=0):
+
+    print("All length")
+    print(len(real_texts), len(synthetic_texts), len(emb_real), len(emb_synth))
+
+    # plots_folder = os.path.join(result_folder, "plots_metrics")
+    # os.makedirs(plots_folder, exist_ok=True)
+    plot_embeddings(emb_real, emb_synth, filename=os.path.join(result_folder, f"embeddings_top_{epoch}.png"), n_components=3, method="umap")
+
+    metrics = {}
+
+    tokenizer = get_tokenizer()
+
+    metrics.update(vocabulary_overlap(real_texts, synthetic_texts, tokenizer))
+    metrics.update(calculate_text_metrics_dict(real_texts, synthetic_texts, tokenizer))
+    metrics.update(calculate_all_metrics_dict(emb_real, emb_synth, real_texts=real_texts, synthetic_texts=synthetic_texts))
+    
+
+    def compute_readability(texts):
+        scores = [flesch_reading_ease(text) for text in texts]
+        return np.mean(scores), np.std(scores)
+    
+    real_readability_mean, real_readability_std = compute_readability(real_texts)
+    synth_readability_mean, synth_readability_std = compute_readability(synthetic_texts)
+
+    metrics['readability_mean_diff'] = np.abs(real_readability_mean - synth_readability_mean)
+    metrics['readability_std_diff'] = np.abs(real_readability_std - synth_readability_std)
+
+    # --- 3. Topic Modeling (LDA) ---
+    def compute_topic_similarity(texts1, texts2, n_topics=5):
+        vectorizer = CountVectorizer(max_df=0.95, min_df=2, stop_words='english')
+        corpus = vectorizer.fit_transform(texts1 + texts2)
+        lda = LatentDirichletAllocation(n_components=n_topics, random_state=42)
+        lda.fit(corpus)
+        
+        # Compare topic distributions (Hellinger distance)
+        topic_dist1 = lda.transform(vectorizer.transform(texts1)).mean(axis=0)
+        topic_dist2 = lda.transform(vectorizer.transform(texts2)).mean(axis=0)
+        hellinger_dist = np.sqrt(0.5 * np.sum((np.sqrt(topic_dist1) - np.sqrt(topic_dist2)) ** 2))
+        return hellinger_dist
+    
+    metrics['topic_hellinger_distance'] = compute_topic_similarity(real_texts, synthetic_texts)
+
+    # --- 4. Perplexity (GPT-2) ---
+    def compute_perplexity(texts, model, tokenizer):
+        perplexities = []
+        device = model.device
+
+        for text in texts:
+            inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+            inputs = {k: v.to(device) for k, v in inputs.items()}  # Move inputs to model's device
+            with torch.no_grad():  # Disable gradient calculation for speed
+                loss = model(**inputs, labels=inputs["input_ids"]).loss
+            perplexities.append(torch.exp(loss).item())
+            
+        return np.mean(perplexities)
+    
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    perplexity_model = GPT2LMHeadModel.from_pretrained("gpt2").to(device)
+    perplexity_tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+    
+    metrics['real_perplexity'] = compute_perplexity(real_texts, perplexity_model, perplexity_tokenizer)
+    metrics['synth_perplexity'] = compute_perplexity(synthetic_texts, perplexity_model, perplexity_tokenizer)
+
     return metrics
 
 # calculate frechet inception distance

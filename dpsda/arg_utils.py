@@ -171,6 +171,12 @@ def parse_args():
         help='save all or selected syn samples')
 
     parser.add_argument(
+        "--diversity_percentage",
+        type=float,
+        default=0.0,
+        help='percentage of random diversity samples')
+
+    parser.add_argument(
         "--log_online",
         action="store_true"
     )

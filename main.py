@@ -2,11 +2,13 @@
 import logging
 import os
 import numpy as np
-from dpsda.logging import setup_logging, log_num_words, load_embeddings, log_samples, log_count, compute_fid, log_metrics, log_prompt_generation
+from dpsda.logging import setup_logging, log_num_words, load_embeddings, log_samples, log_count, compute_fid, log_metrics, log_metrics_only_top, log_prompt_generation
 from dpsda.data_loader import load_data
 from dpsda.feature_extractor import extract_features
 from dpsda.dp_counter import dp_nn_histogram
 from dpsda.arg_utils import parse_args
+
+from collections import Counter
 
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -95,24 +97,24 @@ def main():
     # save initial synthetic samples.
     log_samples(samples=seed_syn_samples, additional_info=seed_additional_info,
                 folder=f'{args.result_folder}/{start_t-1}')
-    # if args.compute_fid:
+    if args.compute_fid:
 
-    #     print("-----------------------------111-\n\n", seed_syn_samples, "------------------------------\n\n")
+        print("-----------------------------111-\n\n", seed_syn_samples, "------------------------------\n\n")
 
-    #     synthetic_features = extract_features(
-    #         data=seed_syn_samples,
-    #         batch_size=args.feature_extractor_batch_size,
-    #         model_name=args.feature_extractor,
+        synthetic_features_top = extract_features(
+            data=seed_syn_samples,
+            batch_size=args.feature_extractor_batch_size,
+            model_name=args.feature_extractor,
 
-    #     )
-    #     # print("-----------------------------222-\n\n", len(synthetic_features), "------------------------------\n\n")
+        )
+        # print("-----------------------------222-\n\n", len(synthetic_features), "------------------------------\n\n")
 
-    #     # compute_fid(synthetic_features, all_private_features, args.feature_extractor,
-    #     #             folder=args.result_folder,  step=start_t-1, log_online=args.log_online)
+        # compute_fid(synthetic_features, all_private_features, args.feature_extractor,
+        #             folder=args.result_folder,  step=start_t-1, log_online=args.log_online)
         
-    #     log_metrics(all_private_samples, seed_syn_samples,  
-    #                 all_private_features, synthetic_features,
-    #                     step=start_t-1, log_online=args.log_online, result_folder=args.result_folder, epoch=start_t-1)
+        log_metrics_only_top(all_private_samples, seed_syn_samples,  
+                             all_private_features, synthetic_features_top,
+                             step=start_t-1, log_online=args.log_online, result_folder=args.result_folder, epoch=start_t-1)
 
     if args.init_combine_divide_L > 1:
         parent_directory = os.path.dirname(args.data_checkpoint_path)
@@ -335,6 +337,23 @@ def main():
 
                 new_syn_samples.extend(new_variants_samples)
 
+                if args.diversity_percentage > 0 and (t/len(args.num_samples_schedule)) < 0.7:
+                    diversity_number = int(args.diversity_percentage * len(new_syn_samples))
+                    print("diversity_number", diversity_number)
+                    print()
+                    diverse_samples, labels, _, _ = api.text_random_sampling(num_samples=diversity_number,
+                                                                             prompt_counter=Counter({'mimic': 100}), 
+                                                                             lens_dict=None)
+
+
+                    replace_indices = np.random.choice(len(new_variants_samples), size=diversity_number, replace=False)
+                    diverse_selection = np.random.choice(diverse_samples, size=diversity_number, replace=False)
+                    
+                    for i, idx in enumerate(replace_indices):
+                        new_variants_samples[idx] = diverse_selection[i]
+                else:
+                    print("!! No Diversity !!")
+
                 print("new_syn_samples")
                 print(len(new_syn_samples))
 
@@ -381,6 +400,17 @@ def main():
             log_metrics(all_private_samples, syn_samples, 
                         all_private_features, synthetic_features,
                         step=t, log_online=args.log_online, result_folder=args.result_folder, epoch=t)
+
+            synthetic_features_top = extract_features(
+                data=all_selected_samples,
+                batch_size=args.feature_extractor_batch_size,
+                model_name=args.feature_extractor,
+
+            )
+
+            log_metrics_only_top(all_private_samples, all_selected_samples, 
+                                 all_private_features, synthetic_features_top,
+                                 step=t, log_online=args.log_online, result_folder=args.result_folder, epoch=t)
 
                         
         all_data = log_samples(

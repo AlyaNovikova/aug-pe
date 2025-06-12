@@ -3,7 +3,7 @@ import os
 import numpy as np
 import csv
 import json
-from dpsda.metrics import calculate_fid, knn_precision_recall_features, compare_text_sets
+from dpsda.metrics import calculate_fid, knn_precision_recall_features, compare_text_sets, compare_text_sets_top
 
 
 def setup_logging(log_file):
@@ -105,6 +105,16 @@ def log_metrics(all_private_texts, seed_syn_samples, emb_real, emb_synth, step=0
     if log_online:
         import wandb
         wandb.log(metrics, step=step)
+
+
+def log_metrics_only_top(all_private_texts, seed_syn_samples, emb_real, emb_synth, step=0, log_online=False, result_folder="", epoch=0):
+    metrics = compare_text_sets_top(all_private_texts, seed_syn_samples, emb_real, emb_synth, result_folder=result_folder, epoch=epoch)
+    logging.info(f"Metrics_top: {metrics}")
+
+    if log_online:
+        import wandb
+        prefixed_metrics = {f"top/{k}": v for k, v in metrics.items()}
+        wandb.log(prefixed_metrics, step=step)
 
 def compute_fid(synthetic_features, all_private_features, feature_extractor, folder='', step=0, log_online=False):
 
