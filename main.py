@@ -45,8 +45,8 @@ def main():
                     folder=f'{args.result_folder}/train')
 
     private_classes = list(private_labels_counter.keys())
-    print("private_classes", private_classes)
-    print("private_labels_counter", private_labels_counter)
+    # print("private_classes", private_classes)
+    # print("private_labels_counter", private_labels_counter)
     logging.info(
         f'Private_num_classes: {len(private_classes)}, Private_num_samples: {len(all_private_samples)}, Private_num_labels:{len(all_private_labels)}')
 
@@ -99,7 +99,7 @@ def main():
                 folder=f'{args.result_folder}/{start_t-1}')
     if args.compute_fid:
 
-        print("-----------------------------111-\n\n", seed_syn_samples, "------------------------------\n\n")
+        # print("-----------------------------111-\n\n", seed_syn_samples, "------------------------------\n\n")
 
         synthetic_features_top = extract_features(
             data=seed_syn_samples,

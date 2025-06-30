@@ -34,11 +34,53 @@ DOC_TYPES = [
     # "physician's order", "admission note", "clinical discharge note", "outpatient clinic note"
     ]
 
+# SPECIALTIES = [
+#     "cardiology", "neurology", "oncology", "pediatrics", "orthopedics",
+#     "internal medicine", "general surgery", "psychiatry", "endocrinology",
+#     "pulmonology", "gastroenterology", "nephrology"
+# ]
+
 SPECIALTIES = [
-    "cardiology", "neurology", "oncology", "pediatrics", "orthopedics",
-    "internal medicine", "general surgery", "psychiatry", "endocrinology",
-    "pulmonology", "gastroenterology", "nephrology"
+    "neuroradiology", 
+    "musculoskeletal radiology",
+    "oncology",
+    "radiology oncology"
+    "abdominal radiology",
+    "chest radiology",
+    "breast imaging",
+    "interventional radiology",
+    "pediatric radiology",
+    "cardiothoracic radiology",
+    "emergency radiology",
+    "nuclear medicine"
 ]
+
+MIMIC_SECTIONS = """
+1. Header with Name and Unit No, ID, Admission Date, Discharge Date, Date of Birth, Sex, Service
+2. Allergies
+3. Attending Physician
+4. Chief Complaint
+5. Major Surgical Procedure
+6. History of Present Illness
+7. Past Medical History
+8. Social History
+9. Family History
+10. Physical Exam (Admission)
+11. Physical Exam (Discharge)
+12. Pertinent Results (Admission)
+13. Pertinent Results (Discharge)
+14. Microbiology Results
+15. Imaging Results
+16. Brief Hospital Course
+17. Medications on Admission
+18. Discharge Medications
+19. Discharge Disposition
+20. Discharge Facility
+21. Discharge Diagnosis
+22. Discharge Condition
+23. Discharge Instructions
+24. Followup Instructions
+"""
 
 INSTRUCTION_TEMPLATES = [
         lambda doc, spec, sty, lbl, length: f"""Generate a synthetic {doc} for a {spec} case {sty}. 
@@ -47,8 +89,15 @@ INSTRUCTION_TEMPLATES = [
         The text should be realistic and resemble actual medical documentation.
         Replace all PHI and sensitive data with labels from this list in double brackets [[label]]: {lbl}. 
 
-        Add sections like Patient Identification, Chief Complaint, 
-        History of Present Illness, Assessment and Plan, Any relevant procedures or treatments and others.
+        Add sections like 
+            - Patient Demographics
+            - Medical History
+            - Present Illness
+            - Physical Exams
+            - Test Results
+            - Hospital Course
+            - Discharge Information
+            - Follow-up Plan.
         
         Make sure the text flows naturally and maintains proper medical terminology.
         
@@ -66,10 +115,17 @@ INSTRUCTION_TEMPLATES = [
     Don't structure it too much. It should be a natural medical live recording.
     Include and Replace all PHI/sensitive data with labels from this list in double brackets like this [[LABEL]], use only this labels: {lbl}. 
     Begin with patient presentation, then describe:
-    - The clinical reasoning process
-    - Diagnostic findings
-    - Therapeutic interventions
-    - Follow-up plans
+            1. Patient Header (demographics)
+            2. Chief Complaint
+            3. History of Present Illness
+            4. Past Medical History
+            5. Physical Exam
+            6. Hospital Course
+            7. Labs/Imaging
+            8. Discharge Diagnosis
+            9. Discharge Medications
+            10. Discharge Instructions
+            11. Follow-up Plan
     
     CRITICAL INSTRUCTIONS:
         - ALL PHI must use [[LABEL]] format - no exceptions. Put all Protected Health Information into the [[label]] format 
@@ -94,7 +150,6 @@ Write a long text, use approximatly {length} words.
     11. Discharge Medications (formatted list)
     12. Discharge Instructions
     13. Follow-up Information
-    14. Signature line
 
     PHI TAGGING RULES:
     - Use ONLY these [[LABEL]] formats: {lbl}
@@ -116,15 +171,30 @@ Write a long text, use approximatly {length} words.
         lambda doc, spec, sty, lbl, length: f"""Create a {doc} for {spec} {sty} that perfectly mimics medical discharge letter documentation style.
 Write a long text, use approximatly {length} words.
     You can use this DOCUMENT STRUCTURE or you can change it, do in a medical discharge letter style:
-    1. HEADER SECTION (demographics with name, date and so on tags)
-    2. Chief Complaint (1-2 sentences)
-    3. HPI (paragraph with [[DATE]]-referenced events)
-    4. PMH/SocialHx/FamilyHx ([[OTHER]] for sensitive social details)
-    5. Physical Exam (system-based with bullet points)
-    6. Results (lab/imaging)
-    7. Hospital Course (narrative with [[HOSPITAL]] references)
-    8. Discharge Plan 
-    9. Follow-up 
+        1. Header with Name and Unit No, ID, Admission Date, Discharge Date, Date of Birth, Sex, Service
+        2. Allergies
+        3. Attending Physician
+        4. Chief Complaint
+        5. Major Surgical Procedure
+        6. History of Present Illness
+        7. Past Medical History
+        8. Social History
+        9. Family History
+        10. Physical Exam (Admission)
+        11. Physical Exam (Discharge)
+        12. Pertinent Results (Admission)
+        13. Pertinent Results (Discharge)
+        14. Microbiology Results
+        15. Imaging Results
+        16. Brief Hospital Course
+        17. Medications on Admission
+        18. Discharge Medications
+        19. Discharge Disposition
+        20. Discharge Facility
+        21. Discharge Diagnosis
+        22. Discharge Condition
+        23. Discharge Instructions
+        24. Followup Instructions
 
     Key requirements: all PHI (Protected Health Information) must be tagged in double brackets [[ ]]. 
     And use only these PHI labels: {lbl}
@@ -138,15 +208,30 @@ Write a long text, use approximatly {length} words.
         lambda doc, spec, sty, lbl, length : f"""Generate a {doc} for {spec} {sty} adhering strictly to medical discharge letter conventions.
 Write a long text, use approximatly {length} words.
     You can write with some of the following sections:
-    • Patient header with name, age and so on
-    • Chief Complaint section
-    • Detailed HPI with [[DATE]]-anchored symptoms
-    • PMH/Allergies/SocialHx (use [[OTHER]] for sensitive info)
-    • System-based Physical Exam (bullet points)
-    • Lab/Imaging results
-    • Hospital Course narrative
-    • Discharge Meds list 
-    • Follow-up instructions 
+        1. Header with Name and Unit No, ID, Admission Date, Discharge Date, Date of Birth, Sex, Service
+        2. Allergies
+        3. Attending Physician
+        4. Chief Complaint
+        5. Major Surgical Procedure
+        6. History of Present Illness
+        7. Past Medical History
+        8. Social History
+        9. Family History
+        10. Physical Exam (Admission)
+        11. Physical Exam (Discharge)
+        12. Pertinent Results (Admission)
+        13. Pertinent Results (Discharge)
+        14. Microbiology Results
+        15. Imaging Results
+        16. Brief Hospital Course
+        17. Medications on Admission
+        18. Discharge Medications
+        19. Discharge Disposition
+        20. Discharge Facility
+        21. Discharge Diagnosis
+        22. Discharge Condition
+        23. Discharge Instructions
+        24. Followup Instructions
 
     You should put all PHI TAGGING in double brackets [[ ]], 
     so all Protected Health Information must be classified with one of the labels with the format of [[]]:  {lbl} 
@@ -199,12 +284,19 @@ Write a long text, use approximatly {length} words.
     - Mimic realistic clinical tone and terminology
 
     RECOMMENDED FLOW:
-    - Patient Presentation
-    - HPI with Timeline
-    - Diagnostics and Exam
-    - Clinical Reasoning
-    - Hospital Course
-    - Medications, Follow-up Plan, and Education
+    1. Patient header (Name, Unit#, Admission/Discharge dates, DOB, Sex, Service)
+    2. Allergies
+    3. Chief Complaint
+    4. History of Present Illness (with detailed timeline)
+    5. Past Medical History
+    6. Social History
+    7. Physical Exam (with system-based bullet points)
+    8. Pertinent Results (lab format with timestamps)
+    9. Brief Hospital Course
+    10. Discharge Diagnoses
+    11. Discharge Medications (formatted list)
+    12. Discharge Instructions
+    13. Follow-up Information
 
     FORMATTING:
     - Use \n between sections
@@ -248,14 +340,19 @@ Write a long text, use approximatly {length} words.
     - Tag all PHI using double brackets with ONLY these labels: {lbl}
 
     SUGGESTED SECTIONS:
-    - Patient Header
-    - Chief Complaint
-    - History of Present Illness
-    - Physical Exam
-    - Results
-    - Hospital Course
-    - Discharge Diagnoses, Medications, and Plan
-    - Follow-up Instructions""",
+    1. Patient header (Name, Unit#, Admission/Discharge dates, DOB, Sex, Service)
+    2. Allergies
+    3. Chief Complaint
+    4. History of Present Illness (with detailed timeline)
+    5. Past Medical History
+    6. Social History
+    7. Physical Exam (with system-based bullet points)
+    8. Pertinent Results (lab format with timestamps)
+    9. Brief Hospital Course
+    10. Discharge Diagnoses
+    11. Discharge Medications (formatted list)
+    12. Discharge Instructions
+    13. Follow-up Information""",
 
 
     lambda doc, spec, sty, lbl, length, summary: f"""Generate a synthetic {doc} for a {spec} case {sty}, using the exact style of a real medical discharge letter.

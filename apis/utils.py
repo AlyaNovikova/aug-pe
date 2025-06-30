@@ -92,22 +92,47 @@ ALL_PUBMED_styles = ["in a professional way", "in a professional tone",  "in a p
 
 DISCHARGE_LETTER_STYLES = [
     "in a professional clinical tone",
-    "as a senior attending physician would document",
-    "using precise clinical terminology",
-    "with thorough discharge instructions",
-    "with complete but concise medical details",
-    "in an academic hospital discharge style",
-    "following typical discharge note structure",
+    "using precise and various clinical terminology",
+    # "with thorough discharge instructions",
+    # "with complete but concise medical details",
+    "in an academic radiology hospital discharge style",
+    # "following typical radiology discharge note structure",
     "with variation in symptoms and plausible diagnoses",
     "as if written by a different clinician",
 ]
 
+# DISCHARGE_REWRITE_PROMPTS = [
+#     "Rephrase this  discharge letter {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]:\n{text}",
+#     "Rewrite this discharge summary {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Preserve the original structure and section headers verbatim, but modifying the clinical content where appropriate:\n{text}",
+#     "Rephrase this hospital discharge letter {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Maintain identical section organization while varying the medical details:\n{text}",
+#     "Rewrite this discharge document {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. You may reword clinical content within sections:\n{text}",
+#     "Rephrase this discharge note {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. And modify the narrative portions:\n{text}"
+# ]
+
+
 DISCHARGE_REWRITE_PROMPTS = [
-    "Rephrase this discharge letter {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]:\n{text}",
-    "Rewrite this discharge summary {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Preserve the original structure and section headers verbatim, but modifying the clinical content where appropriate:\n{text}",
-    "Rephrase this hospital discharge letter {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Maintain identical section organization while varying the medical details:\n{text}",
-    "Rewrite this discharge document {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. You may reword clinical content within sections:\n{text}",
-    "Rephrase this discharge note {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. And modify the narrative portions:\n{text}"
+    """Rephrase this radiology  discharge letter {style}. 
+    Reword clinical history and recommendations, modify the narrative portions.
+    But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]].
+    Letter: \n{text}""",
+    
+    """Rewrite and rephrase this radiology discharge letter {style}. 
+    But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. 
+    Preserve the original structure and section headers, but modify the clinical content, like for the new patient.
+    Letter: \n{text}""",
+    
+    """Rephrase this hospital radiology  discharge letter {style}. 
+    Change all the clinical information and the disease, but the letter should still be about radiology.
+    And keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. 
+    Maintain identical section organization while varying the medical details:\n{text}""",
+    
+    """Based on this radiology discharge letter, create a new radiology discharge letter for a new patient {style}. 
+    But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. 
+    You may reword clinical content within sections:\n{text}""",
+    
+    """Based on this radiology discharge letter, create a new radiology discharge letter for a new patient with a different diagnosis like . 
+    Maintain the exact original structure, and sections. 
+    But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Letter:\n{text}""",
 ]
 
 

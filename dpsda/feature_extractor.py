@@ -10,7 +10,7 @@ from sentence_transformers import SentenceTransformer
 def extract_features(
         data,
         batch_size=1000,
-        model_name="all-mpnet-base-v2", sentence_transformer=True):
+        model_name="all-mpnet-base-v2", sentence_transformer=False):
     # If available, the model is automatically executed on the GPU. You can specify the device for the model like this:
 
     if sentence_transformer:

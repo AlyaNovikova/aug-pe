@@ -19,7 +19,7 @@ from collections import Counter
 import numpy as np
 import itertools
 import nltk
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction, corpus_bleu
 from scipy.stats import entropy, wasserstein_distance
 
 import wandb
@@ -108,23 +108,33 @@ def compare_length_distributions(real_lengths, synth_lengths):
     }
 
 def compute_bleu(real_texts, synthetic_texts, tokenizer):
+    real_trimmed, synt_trimmed = real_texts, synthetic_texts
+    if len(real_texts) > len(synthetic_texts):
+        real_trimmed = real_texts[:len(synthetic_texts)]
+    else:
+        synt_trimmed = synthetic_texts[:len(real_texts)]
+
     smoothie = SmoothingFunction().method4
     scores = []
-    for ref, hyp in zip(real_texts, synthetic_texts):
+    for ref, hyp in zip(real_trimmed, synt_trimmed):
         ref_tokens = tokenizer(ref)
         hyp_tokens = tokenizer(hyp)
         scores.append(sentence_bleu([ref_tokens], hyp_tokens, smoothing_function=smoothie))
     return np.mean(scores)
 
+
+
 from tqdm import tqdm
 
 
 def compute_bertscore(real_texts, synthetic_texts, lang='en'):
-    if len(real_texts) != len(synthetic_texts):
-        real_text_list = real_texts[:len(synthetic_texts)]
+    real_trimmed, synt_trimmed = real_texts, synthetic_texts
+    if len(real_texts) > len(synthetic_texts):
+        real_trimmed = real_texts[:len(synthetic_texts)]
     else:
-        real_text_list = real_texts
-    P, R, F1 = bert_score(synthetic_texts, real_text_list, lang=lang, verbose=False)
+        synt_trimmed = synthetic_texts[:len(real_texts)]
+
+    P, R, F1 = bert_score(synt_trimmed, real_trimmed, lang=lang, verbose=False)
     return {
         "precision": P.mean().item(),
         "recall": R.mean().item(),
@@ -291,13 +301,12 @@ def calculate_all_metrics_dict(original_embeddings, synthetic_embeddings, k=3, r
 
 
 def calculate_text_metrics_dict(real_text_list, synthetic_data, tokenizer):
-    real_trimmed = real_text_list[:len(synthetic_data)]
-   
-    bert_score = compute_bertscore(real_trimmed, synthetic_data)["f1"]
+
+    bert_score = compute_bertscore(real_text_list, synthetic_data)["f1"]
     
     # bert_score = compute_bertscore_pairwise(real_text_list, synthetic_data)["pairwise_f1_mean"]
 
-    bleu = compute_bleu(real_trimmed, synthetic_data, tokenizer)
+    bleu = compute_bleu(real_text_list, synthetic_data, tokenizer)
     self_bleu = compute_self_bleu(synthetic_data, tokenizer)
     distinct_2 = compute_distinct_2(synthetic_data, tokenizer)
 
