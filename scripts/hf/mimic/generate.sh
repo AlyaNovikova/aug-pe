@@ -3,8 +3,9 @@ var_type="mimic_rephrase_tone"
 # feat_ext="UFNLP/gatortron-base"
 # feat_ext="stsb-roberta-base-v2"
 # feat_ext="all-mpnet-base-v2"
-feat_ext="pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb"
-length=1024
+# feat_ext="pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb"
+feat_ext="Qwen/Qwen3-Embedding-8B"
+length=2048
 temperature=1.0
 num_seed_samples=29
 lookahead_degree=0
@@ -16,7 +17,7 @@ echo generating $num_samples samples
 epochs=10
 word_var_scale=0
 select_syn_mode=rank
-random_str="exp_06_29"
+random_str="exp_07_01"
 
 percentage_of_summaries=0.0
 summaries_model="without_summ"
@@ -26,7 +27,7 @@ diversity_percentage=0.0
 length_mean=2487
 length_std=930
 length_min=1200
-length_max=4500
+length_max=4000
 
 # model_type="deepseek-v2.5:latest"
 # model_type="deepseek-v2:16b"
@@ -34,12 +35,12 @@ length_max=4500
 # model_type="aravhawk/llama4:latest"
 # model_type="qwen:72b"
 # model_type="mistral-small3.1:latest"
-model_type="mixtral:latest"
+# model_type="mixtral:latest"
 # model_type="mistral-large:latest"
-# model_type="gemma3:latest"
+model_type="gemma3:latest"
 # model_type="gemma3:27b"
 
-
+model_type_2="${model_type}"
 if [[ "$model_type" == *:* ]]; then
     model_type_2="${model_type//:/_}"
 fi
@@ -47,7 +48,7 @@ fi
 noise=0
 args=""
 api="HFGPT"
-feature_extractor_batch_size=1024
+feature_extractor_batch_size=5
 if [ "$model_type" = "gpt2-large" ]; then
     batch_size=32
 elif [ "$model_type" = "gpt2-medium" ]; then

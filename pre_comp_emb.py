@@ -36,7 +36,7 @@ all_private_samples, all_private_labels, private_labels_counter, private_labels_
 
 all_private_features = extract_features(
     data=all_private_samples,
-    batch_size=10000,
+    batch_size=4,
     model_name=feature_extractor,
 )
 
