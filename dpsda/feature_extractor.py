@@ -12,11 +12,33 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
 def extract_features(
-        data,
+        data, model,
         batch_size=4,
         model_name="all-mpnet-base-v2", sentence_transformer=True):
     # If available, the model is automatically executed on the GPU. You can specify the device for the model like this:
 
+    print("len(data)", len(data))
+    print("batch_size", batch_size)
+
+    if sentence_transformer and model is not None:
+        model.eval()
+
+        print("SentenceTransformer max_seq_length", model.max_seq_length)  
+        embeddings = []
+
+        for i in tqdm(range(0, len(data), batch_size)):
+            batch = data[i:i+batch_size]
+            with torch.no_grad():
+                batch_emb = model.encode(batch)
+                embeddings.append(batch_emb)
+            torch.cuda.empty_cache() 
+
+        sentence_embeddings = np.concatenate(embeddings)
+
+        print("Shape length of sentence_embeddings", sentence_embeddings.shape)
+
+        return sentence_embeddings
+    
     if sentence_transformer:
         
         if "Qwen" in model_name:
@@ -33,20 +55,17 @@ def extract_features(
                 # tokenizer_kwargs={"padding_side": "left"}
             )
             print(model)
-            model.to('cuda')
 
         else: 
             model = SentenceTransformer(model_name)  # device='cuda',
-            model.eval()
+        
+        model.eval()
 
         print("SentenceTransformer max_seq_length", model.max_seq_length)  
 
         # model.eval()
 
         embeddings = []
-
-        print("len(data)", len(data))
-        print("batch_size", batch_size)
 
         for i in tqdm(range(0, len(data), batch_size)):
             batch = data[i:i+batch_size]
@@ -62,41 +81,41 @@ def extract_features(
 
         return sentence_embeddings
     
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModel.from_pretrained(model_name)
-    model.eval()
+    # tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # model = AutoModel.from_pretrained(model_name)
+    # model.eval()
     
-    # Move model to GPU if available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = model.to(device)
+    # # Move model to GPU if available
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # model = model.to(device)
     
-    sentence_embeddings = []
+    # sentence_embeddings = []
     
-    with torch.no_grad():
-        for i in tqdm(range(0, len(data), batch_size)):
-            batch = data[i:i + batch_size]
+    # with torch.no_grad():
+    #     for i in tqdm(range(0, len(data), batch_size)):
+    #         batch = data[i:i + batch_size]
             
-            # Tokenize and move to device
-            inputs = tokenizer(
-                batch, 
-                padding=True, 
-                truncation=True, 
-                return_tensors="pt", 
-                max_length=512  # Adjust based on your needs
-            ).to(device)
+    #         # Tokenize and move to device
+    #         inputs = tokenizer(
+    #             batch, 
+    #             padding=True, 
+    #             truncation=True, 
+    #             return_tensors="pt", 
+    #             max_length=512  # Adjust based on your needs
+    #         ).to(device)
             
-            # Forward pass
-            outputs = model(**inputs)
+    #         # Forward pass
+    #         outputs = model(**inputs)
             
-            # Use mean pooling for sentence embeddings
-            embeddings = outputs.last_hidden_state.mean(dim=1).cpu().numpy()
+    #         # Use mean pooling for sentence embeddings
+    #         embeddings = outputs.last_hidden_state.mean(dim=1).cpu().numpy()
             
-            if len(embeddings) > 0:
-                sentence_embeddings.append(embeddings)
+    #         if len(embeddings) > 0:
+    #             sentence_embeddings.append(embeddings)
     
-    sentence_embeddings = np.concatenate(sentence_embeddings)
-    del model, tokenizer  # Free memory
-    return sentence_embeddings
+    # sentence_embeddings = np.concatenate(sentence_embeddings)
+    # del model, tokenizer  # Free memory
+    # return sentence_embeddings
 
 
 

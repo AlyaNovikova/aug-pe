@@ -10,12 +10,28 @@ from dpsda.arg_utils import parse_args
 
 from collections import Counter
 
+import torch
+from sentence_transformers import SentenceTransformer
+
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 def main():
     args, api = parse_args()
+
+    if "Qwen" in args.feature_extractor:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(f"Using device: {device}")  
+        
+        model_feat_extr = SentenceTransformer(
+            args.feature_extractor,
+            device=device,
+        )
+        print(model_feat_extr)
+
+    else: 
+        model_feat_extr = SentenceTransformer(args.feature_extractor)
 
     if args.log_online:
         import wandb
@@ -59,7 +75,7 @@ def main():
     else:
         # extract the embeddings of the private data
         all_private_features = extract_features(
-            data=all_private_samples,
+            data=all_private_samples, model=model_feat_extr,
             batch_size=args.feature_extractor_batch_size,
             model_name=args.feature_extractor,
         )
@@ -102,7 +118,7 @@ def main():
         # print("-----------------------------111-\n\n", seed_syn_samples, "------------------------------\n\n")
 
         synthetic_features_top = extract_features(
-            data=seed_syn_samples,
+            data=seed_syn_samples, model=model_feat_extr,
             batch_size=args.feature_extractor_batch_size,
             model_name=args.feature_extractor,
 
@@ -161,7 +177,7 @@ def main():
                 print("-----------------------------111-\n\n", "------------------------------\n\n")
 
                 synthetic_features = extract_features(
-                    data=syn_samples,
+                    data=syn_samples, model=model_feat_extr,
                     batch_size=args.feature_extractor_batch_size,
                     model_name=args.feature_extractor,
 
@@ -215,7 +231,7 @@ def main():
         for i in range(packed_samples.shape[1]):
             print("packed_samples")
             sub_packed_features = extract_features(
-                data=packed_samples[:, i],
+                data=packed_samples[:, i], model=model_feat_extr,
                 batch_size=args.feature_extractor_batch_size,
                 model_name=args.feature_extractor,
 
@@ -388,7 +404,7 @@ def main():
             print("-----------------------------333-\n\n", len(all_selected_samples), len(syn_samples), "------------------------------\n\n")
 
             synthetic_features = extract_features(
-                data=syn_samples,
+                data=syn_samples, model=model_feat_extr,
                 batch_size=args.feature_extractor_batch_size,
                 model_name=args.feature_extractor,
 
@@ -402,7 +418,7 @@ def main():
                         step=t, log_online=args.log_online, result_folder=args.result_folder, epoch=t)
 
             synthetic_features_top = extract_features(
-                data=all_selected_samples,
+                data=all_selected_samples, model=model_feat_extr,
                 batch_size=args.feature_extractor_batch_size,
                 model_name=args.feature_extractor,
 

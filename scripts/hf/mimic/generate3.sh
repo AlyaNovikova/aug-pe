@@ -7,7 +7,7 @@ var_type="mimic_rephrase_tone"
 feat_ext="Qwen/Qwen3-Embedding-8B"
 length=2048
 temperature=1.0
-num_seed_samples=17
+num_seed_samples=10
 lookahead_degree=0
 k=2 # number of variations
 L=$((k+1))
@@ -29,9 +29,9 @@ length_std=930
 length_min=1200
 length_max=4000
 
-# model_type="deepseek-v2.5:latest"
+model_type="deepseek-v2.5:latest"
 # model_type="deepseek-v2:16b"
-model_type="llama3.3"
+# model_type="llama3.3:latest"
 # model_type="aravhawk/llama4:latest"
 # model_type="qwen:72b"
 # model_type="mistral-small3.1:latest"
@@ -48,7 +48,7 @@ fi
 noise=0
 args=""
 api="HFGPT"
-feature_extractor_batch_size=5
+feature_extractor_batch_size=1
 if [ "$model_type" = "gpt2-large" ]; then
     batch_size=32
 elif [ "$model_type" = "gpt2-medium" ]; then
@@ -60,7 +60,7 @@ else
 fi
 
 # mimic_summ_diversity_embed
-result_folder="result/mimic_aft_v1/${model_type_2}_${feat_ext}/perc_of_summ_${percentage_of_summaries}_summ_mod_${summaries_model}_divers_perc_${diversity_percentage}_len_mean${length_mean}_len_std${length_std}_${num_samples}_n${noise}_L${L}_t${temperature}_${random_str}"
+result_folder="result/mimic_aft_v2/${model_type_2}_${feat_ext}/perc_of_summ_${percentage_of_summaries}_summ_mod_${summaries_model}_divers_perc_${diversity_percentage}_len_mean${length_mean}_len_std${length_std}_${num_samples}_n${noise}_L${L}_t${temperature}_${random_str}"
 
 
 ### load datacheckpoint 
