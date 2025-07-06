@@ -10,6 +10,8 @@ from dpsda.arg_utils import parse_args
 
 from collections import Counter
 
+from dpsda.metrics import initialize_umap
+
 import torch
 from sentence_transformers import SentenceTransformer
 
@@ -32,6 +34,9 @@ def main():
 
     else: 
         model_feat_extr = SentenceTransformer(args.feature_extractor)
+
+    reducer = None
+    real_reduced = None
 
     if args.log_online:
         import wandb
@@ -79,6 +84,10 @@ def main():
             batch_size=args.feature_extractor_batch_size,
             model_name=args.feature_extractor,
         )
+
+    initialize_umap(all_private_features, 
+                    reducer_path=f'{args.result_folder}/umap_reducer.pkl', 
+                    embedding_path=f'{args.result_folder}/real_reduced.npy')
 
     # Generating initial synthetic samples.
     if args.data_checkpoint_path != '':

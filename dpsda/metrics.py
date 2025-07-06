@@ -385,12 +385,12 @@ def plot_metrics(metrics_history, output_dir):
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 import numpy as np
+from sklearn.preprocessing import normalize
+import umap
 
 def plot_embeddings(real_features, synthetic_features, method="tsne", title="Embeddings Visualization", n_components=2, filename=""):
     # Stack and create labels
     all_embeddings = np.vstack([real_features, synthetic_features])
-    from sklearn.preprocessing import normalize
-    import umap
     all_embeddings = normalize(all_embeddings)
 
     labels = np.array(["Real"] * len(real_features) + ["Synthetic"] * len(synthetic_features))
@@ -420,6 +420,46 @@ def plot_embeddings(real_features, synthetic_features, method="tsne", title="Emb
     plt.savefig(filename)
     plt.close()
 
+import pickle
+
+def initialize_umap(real_features, reducer_path="umap_reducer.pkl", embedding_path="real_reduced.npy", n_components=3):
+    global reducer, real_reduced
+
+    if os.path.exists(reducer_path) and os.path.exists(embedding_path):
+        with open(reducer_path, "rb") as f:
+            reducer = pickle.load(f)
+        real_reduced = np.load(embedding_path)
+        print("UMAP reducer and real embedding loaded from disk.")
+    else:
+        print("Fitting new UMAP reducer...")
+        real_features = normalize(real_features)
+        reducer = umap.UMAP(n_components=n_components, n_neighbors=15, min_dist=0.1, random_state=42)
+        reducer.fit(real_features)
+        real_reduced = reducer.transform(real_features)
+
+        with open(reducer_path, "wb") as f:
+            pickle.dump(reducer, f)
+        np.save(embedding_path, real_reduced)
+        print("UMAP reducer and real embedding saved.")
+
+def plot_embeddings_with_fixed_real(synthetic_features, title="Embeddings Visualization", filename=""):
+    global reducer, real_reduced
+    synthetic_features = normalize(synthetic_features)
+    synthetic_reduced = reducer.transform(synthetic_features)
+
+    plt.figure(figsize=(10, 6))
+    plt.scatter(real_reduced[:, 0], real_reduced[:, 1], label="Real", alpha=0.7, c="blue")
+    plt.scatter(synthetic_reduced[:, 0], synthetic_reduced[:, 1], label="Synthetic", alpha=0.7, c="orange")
+    plt.title(title)
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(filename)
+    plt.close()
+
+
+
+
+
 from textstat import flesch_reading_ease
 import spacy
 from gensim import corpora, models
@@ -434,7 +474,8 @@ def compare_text_sets(real_texts, synthetic_texts, emb_real, emb_synth, result_f
 
     # plots_folder = os.path.join(result_folder, "plots_metrics")
     # os.makedirs(plots_folder, exist_ok=True)
-    plot_embeddings(emb_real, emb_synth, filename=os.path.join(result_folder, f"embeddings_{epoch}.png"), n_components=3, method="umap")
+    # plot_embeddings(emb_real, emb_synth, filename=os.path.join(result_folder, f"embeddings_{epoch}.png"), n_components=3, method="umap")
+    plot_embeddings_with_fixed_real(emb_synth, filename=os.path.join(result_folder, f"embeddings_{epoch}.png"))
 
     metrics = {}
 
@@ -500,7 +541,8 @@ def compare_text_sets_top(real_texts, synthetic_texts, emb_real, emb_synth, resu
 
     # plots_folder = os.path.join(result_folder, "plots_metrics")
     # os.makedirs(plots_folder, exist_ok=True)
-    plot_embeddings(emb_real, emb_synth, filename=os.path.join(result_folder, f"embeddings_top_{epoch}.png"), n_components=3, method="umap")
+    # plot_embeddings(emb_real, emb_synth, filename=os.path.join(result_folder, f"embeddings_top_{epoch}.png"), n_components=3, method="umap")
+    plot_embeddings_with_fixed_real(emb_synth, filename=os.path.join(result_folder, f"embeddings_top_{epoch}.png"))
 
     metrics = {}
 

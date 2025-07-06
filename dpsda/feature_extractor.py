@@ -11,16 +11,62 @@ os.environ["OPENBLAS_NUM_THREADS"] = "4"
 os.environ["OMP_NUM_THREADS"] = "1"      
 os.environ["MKL_NUM_THREADS"] = "1"
 
+def chunk_text(text, tokenizer, max_tokens):
+    # Tokenize the input text (returns list of token IDs)
+    tokens = tokenizer.encode(text, add_special_tokens=False)
+    # Create chunks of token IDs
+    chunks = [tokens[i:i + max_tokens] for i in range(0, len(tokens), max_tokens)]
+    # Decode each chunk back to string
+    return [tokenizer.decode(chunk, skip_special_tokens=True) for chunk in chunks]
+
 def extract_features(
-        data, model,
+        data, model=None,
         batch_size=4,
-        model_name="all-mpnet-base-v2", sentence_transformer=True):
+        model_name="all-mpnet-base-v2", sentence_transformer=True, max_tokens=512):
     # If available, the model is automatically executed on the GPU. You can specify the device for the model like this:
 
     print("len(data)", len(data))
     print("batch_size", batch_size)
 
+    print("len(data)", len(data))
+    print("batch_size", batch_size)
+
+    if (("MedEmbed" in model_name) or ("BioBERT" in model_name)) and model is not None:
+        print("EMBEDDINGS MODEL", model_name)
+        model.eval()
+        embeddings = []
+
+        tokenizer = model.tokenizer  # Access tokenizer from the SentenceTransformer
+
+        for i in tqdm(range(0, len(data), batch_size)):
+            batch = data[i:i+batch_size]
+            batch_embeddings = []
+
+            for text in batch:
+                # 1. Chunk text based on token length
+                chunks = chunk_text(text, tokenizer, max_tokens)
+
+                # 2. Encode chunks
+                with torch.no_grad():
+                    chunk_embs = model.encode(chunks)
+                    chunk_embs = np.array(chunk_embs)
+
+                # 3. Average to get one embedding per original text
+                text_embedding = np.mean(chunk_embs, axis=0)
+                batch_embeddings.append(text_embedding)
+
+            embeddings.append(np.vstack(batch_embeddings))
+            torch.cuda.empty_cache()
+
+        sentence_embeddings = np.concatenate(embeddings, axis=0)
+        print("Final shape:", sentence_embeddings.shape)
+
+        return sentence_embeddings
+
+
+
     if sentence_transformer and model is not None:
+        print("EMBEDDINGS MODEL", model_name)
         model.eval()
 
         print("SentenceTransformer max_seq_length", model.max_seq_length)  
@@ -39,47 +85,42 @@ def extract_features(
 
         return sentence_embeddings
     
-    if sentence_transformer:
+    # if sentence_transformer:
         
-        if "Qwen" in model_name:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            print(f"Using device: {device}")  
+    #     if "Qwen" in model_name:
+    #         device = "cuda" if torch.cuda.is_available() else "cpu"
+    #         print(f"Using device: {device}")  
             
-            model = SentenceTransformer(
-                model_name,
-                device=device,  
-                # model_kwargs={
-                #     "attn_implementation": "flash_attention_2",  
-                #     "torch_dtype": torch.float16,  
-                # },
-                # tokenizer_kwargs={"padding_side": "left"}
-            )
-            print(model)
+    #         model = SentenceTransformer(
+    #             model_name,
+    #             device=device,
+    #         )
+    #         print(model)
 
-        else: 
-            model = SentenceTransformer(model_name)  # device='cuda',
+    #     else: 
+    #         model = SentenceTransformer(model_name)  # device='cuda',
         
-        model.eval()
+    #     model.eval()
 
-        print("SentenceTransformer max_seq_length", model.max_seq_length)  
+    #     print("SentenceTransformer max_seq_length", model.max_seq_length)  
 
-        # model.eval()
+    #     # model.eval()
 
-        embeddings = []
+    #     embeddings = []
 
-        for i in tqdm(range(0, len(data), batch_size)):
-            batch = data[i:i+batch_size]
-            with torch.no_grad():
-                batch_emb = model.encode(batch)
-                embeddings.append(batch_emb)
-            torch.cuda.empty_cache() 
+    #     for i in tqdm(range(0, len(data), batch_size)):
+    #         batch = data[i:i+batch_size]
+    #         with torch.no_grad():
+    #             batch_emb = model.encode(batch)
+    #             embeddings.append(batch_emb)
+    #         torch.cuda.empty_cache() 
 
-        sentence_embeddings = np.concatenate(embeddings)
-        del model
+    #     sentence_embeddings = np.concatenate(embeddings)
+    #     del model
 
-        print("Shape length of sentence_embeddings", sentence_embeddings.shape)
+    #     print("Shape length of sentence_embeddings", sentence_embeddings.shape)
 
-        return sentence_embeddings
+    #     return sentence_embeddings
     
     # tokenizer = AutoTokenizer.from_pretrained(model_name)
     # model = AutoModel.from_pretrained(model_name)

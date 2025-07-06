@@ -5,6 +5,9 @@ from dpsda.data_loader import load_data
 import argparse
 from apis.utils import set_seed
 
+import torch
+from sentence_transformers import SentenceTransformer
+
 all_feature_extractor = ["sentence-t5-xl", "sentence-t5-large", "sentence-t5-base",
                          "all-MiniLM-L6-v2",  "all-mpnet-base-v2",
                          "paraphrase-MiniLM-L6-v2",
@@ -29,13 +32,26 @@ data_files = {'pubmed': 'data/pubmed/train.csv',
               'openreview': 'data/openreview/iclr23_reviews_train.csv'
               }
 
+if "Qwen" in feature_extractor:
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")  
+    
+    model_feat_extr = SentenceTransformer(
+        feature_extractor,
+        device=device,
+    )
+    print(model_feat_extr)
+
+else: 
+    model_feat_extr = SentenceTransformer(feature_extractor)
+
 all_private_samples, all_private_labels, private_labels_counter, private_labels_indexer = load_data(
     dataset=args.dataset,
     data_file=data_files[args.dataset],
     num_samples=-1)
 
 all_private_features = extract_features(
-    data=all_private_samples,
+    data=all_private_samples, model=model_feat_extr,
     batch_size=4,
     model_name=feature_extractor,
 )
