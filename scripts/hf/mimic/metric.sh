@@ -1,9 +1,19 @@
 
-feat_ext="sentence-t5-base"
+# feat_ext="sentence-t5-base"
+feat_ext="Qwen/Qwen3-Embedding-8B"
+# feat_ext="abhinand/MedEmbed-large-v0.1"
 # feat_ext="pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb"
-epochs=10
-model_folder="mistral-small3.1_stsb-roberta-base-v2/perc_of_summ_0.7_summ_mod_deepseek-v2.5_divers_numb_0_len_mean2487_len_std930_120_n0_L6_t1.0__parametrs_len_diversity_summ11"
-result_folder="result/mimic_summ_diversity_embed/${model_folder}"
+epochs=15
+model_folder="gemma3_latest_Qwen/Qwen3-Embedding-8B/perc_of_summ_0.0_summ_mod_without_summ_divers_perc_0.0_len_mean2487_len_std930_90_n5_L3_t1.0_exp_07_05"
+
+# mistral-small3.1_latest_Qwen/Qwen3-Embedding-8B/perc_of_summ_0.0_summ_mod_without_summ_divers_perc_0.1_len_mean2487_len_std930_90_n0_L3_t1.0_exp_07_03
+# mixtral_latest_Qwen/Qwen3-Embedding-8B/perc_of_summ_0.0_summ_mod_without_summ_divers_perc_0.0_len_mean2487_len_std930_90_n0_L3_t1.0_exp_07_01
+# gemma3_27b_Qwen/Qwen3-Embedding-8B/perc_of_summ_0.0_summ_mod_without_summ_divers_perc_0.0_len_mean2487_len_std930_90_n0_L3_t1.0_exp_07_03
+# gemma3_latest_Qwen/Qwen3-Embedding-8B/perc_of_summ_0.0_summ_mod_without_summ_divers_perc_0.0_len_mean2487_len_std930_90_n5_L3_t1.0_exp_07_05
+# llama3.3_Qwen/Qwen3-Embedding-8B/perc_of_summ_0.0_summ_mod_without_summ_divers_perc_0.0_len_mean2487_len_std930_90_n0_L3_t1.0_exp_07_03
+
+
+result_folder="result/mimic_aft_v6/${model_folder}"
 min_token_threshold=50
 
 # llama4:scout_stsb-roberta-base-v2/perc_of_summ_0.7_summ_mod_llama4_divers_numb_0_len_mean2487_len_std930_120_n0_L6_t1.0__parametrs_len_diversity_summ11

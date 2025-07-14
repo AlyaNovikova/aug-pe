@@ -26,6 +26,7 @@ from dpsda.feature_extractor import extract_features
 from utility_eval.compute_mauve import *
 from utility_eval.precision_recall import *
 from apis.utils import set_seed 
+from dpsda.metrics import initialize_umap
 
 import time
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -65,7 +66,7 @@ def eval_one_file(syn_fname, all_original_embeddings, model_name_or_path, csv_fn
 
     all_synthetic_embeddings = extract_features(
             data=synthetic_data,
-            batch_size=1024,
+            batch_size=1,
             model_name=model_name_or_path,
         )
 
@@ -234,6 +235,33 @@ def main():
     }
     args.train_data_embeddings_file = dataset2embedding_file[args.dataset]
 
+    reducer = None
+    real_reduced = None
+
+    # syn_data = load_dataset("csv", data_files=args.synthetic_file)
+
+    # synthetic_data = []
+    
+    # elif dataset == "mimic":
+    #     print("BEGIN")
+    #     print("This is mimic")
+    #     synthetic_data = [d for d in syn_data['train']['text']]
+    #     print("--- syn data len 1 ---", (len(synthetic_data)))
+    #     df = pd.read_csv(syn_fname)
+    #     print(len(df))  
+    #     synthetic_data = df['text'].tolist()
+    #     print("--- syn data len 2 ---", (len(synthetic_data)))
+
+    # else:
+    #     synthetic_data = [d for d in syn_data['train']['text']]
+    # print("--- syn data len ---", (len(synthetic_data)))
+
+    # all_synthetic_embeddings_ = extract_features(
+    #         data=synthetic_data,
+    #         batch_size=1,
+    #         model_name=args.model_name_or_path,
+    #     )
+
     all_original_embeddings, original_labels = load_embeddings(
         args.train_data_embeddings_file)
 
@@ -241,6 +269,10 @@ def main():
         args.run = 1
 
     metrics_history = {}  # To store metrics across epochs
+
+    initialize_umap(all_original_embeddings, 
+                    reducer_path=f'{args.synthetic_folder}/umap_reducer.pkl', 
+                    embedding_path=f'{args.synthetic_folder}/real_reduced.npy')
     
     if args.synthetic_folder == '':
         if args.synthetic_file != '':
@@ -289,7 +321,7 @@ def main():
                 print(f'Processing {csv_fname}')
                 metrics = eval_one_file(syn_fname=syn_data_file, 
                                       all_original_embeddings=all_original_embeddings, 
-                                      model=args.model_name_or_path,
+                                      model_name_or_path=args.model_name_or_path,
                                       csv_fname=csv_fname, 
                                       batch_size=args.batch_size,
                                       private_data_size=args.private_data_size,

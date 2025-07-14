@@ -52,7 +52,7 @@ all_private_samples, all_private_labels, private_labels_counter, private_labels_
 
 all_private_features = extract_features(
     data=all_private_samples, model=model_feat_extr,
-    batch_size=4,
+    batch_size=1,
     model_name=feature_extractor,
 )
 

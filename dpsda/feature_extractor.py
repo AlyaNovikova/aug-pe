@@ -85,42 +85,42 @@ def extract_features(
 
         return sentence_embeddings
     
-    # if sentence_transformer:
+    if sentence_transformer:
         
-    #     if "Qwen" in model_name:
-    #         device = "cuda" if torch.cuda.is_available() else "cpu"
-    #         print(f"Using device: {device}")  
+        if "Qwen" in model_name:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            print(f"Using device: {device}")  
             
-    #         model = SentenceTransformer(
-    #             model_name,
-    #             device=device,
-    #         )
-    #         print(model)
+            model = SentenceTransformer(
+                model_name,
+                device=device,
+            )
+            print(model)
 
-    #     else: 
-    #         model = SentenceTransformer(model_name)  # device='cuda',
+        else: 
+            model = SentenceTransformer(model_name)  # device='cuda',
         
-    #     model.eval()
+        model.eval()
 
-    #     print("SentenceTransformer max_seq_length", model.max_seq_length)  
+        print("SentenceTransformer max_seq_length", model.max_seq_length)  
 
-    #     # model.eval()
+        # model.eval()
 
-    #     embeddings = []
+        embeddings = []
 
-    #     for i in tqdm(range(0, len(data), batch_size)):
-    #         batch = data[i:i+batch_size]
-    #         with torch.no_grad():
-    #             batch_emb = model.encode(batch)
-    #             embeddings.append(batch_emb)
-    #         torch.cuda.empty_cache() 
+        for i in tqdm(range(0, len(data), batch_size)):
+            batch = data[i:i+batch_size]
+            with torch.no_grad():
+                batch_emb = model.encode(batch)
+                embeddings.append(batch_emb)
+            torch.cuda.empty_cache() 
 
-    #     sentence_embeddings = np.concatenate(embeddings)
-    #     del model
+        sentence_embeddings = np.concatenate(embeddings)
+        del model
 
-    #     print("Shape length of sentence_embeddings", sentence_embeddings.shape)
+        print("Shape length of sentence_embeddings", sentence_embeddings.shape)
 
-    #     return sentence_embeddings
+        return sentence_embeddings
     
     # tokenizer = AutoTokenizer.from_pretrained(model_name)
     # model = AutoModel.from_pretrained(model_name)

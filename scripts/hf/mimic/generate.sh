@@ -38,9 +38,9 @@ length_max=4000
 # model_type="qwen:72b"
 # model_type="qwen3:32b"
 # model_type="mistral-small3.1:latest"
-# model_type="mixtral:latest"
+model_type="mixtral:latest"
 # model_type="mistral-large:latest"
-model_type="gemma3:latest"
+# model_type="gemma3:latest"
 # model_type="gemma3:27b"
 
 model_type_2="${model_type}"
@@ -48,7 +48,7 @@ if [[ "$model_type" == *:* ]]; then
     model_type_2="${model_type//:/_}"
 fi
 
-noise=5
+noise=0
 args=""
 api="HFGPT"
 feature_extractor_batch_size=1
