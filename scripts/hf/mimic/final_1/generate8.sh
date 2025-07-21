@@ -6,19 +6,19 @@ random_str="exp_07_20"
 feat_ext="Qwen/Qwen3-Embedding-8B"
 # feat_ext="abhinand/MedEmbed-large-v0.1"
 
-num_seed_samples=10
-k=1 # number of variations
-few_shot="No"
+num_seed_samples=40
+k=2 # number of variations
+few_shot="Yes"
 self_refinement="No"
 multi_models="No"
-bad_prompts="Yes"
+bad_prompts="No"
 noise=0
 temperature=1.0
 diversity_percentage=0.0
 
 # model_type="mixtral:latest"
 # model_type="qwen:72b"
-# model_type="mistral-small3.1:latest"
+model_type="mistral-small3.1:latest"
 # model_type="llama3.3:latest"
 
 percentage_of_summaries=0.0
@@ -30,7 +30,7 @@ summaries_model="without_summ"
 # model_type="llama4:16x17b"
 # model_type="qwen3:32b"
 # model_type="mistral-large:latest"
-model_type="gemma3:latest"
+# model_type="gemma3:latest"
 # model_type="gemma3:27b"
 
 model_one="qwen:72b"

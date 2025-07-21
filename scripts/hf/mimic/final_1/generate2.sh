@@ -6,8 +6,8 @@ random_str="exp_07_20"
 feat_ext="Qwen/Qwen3-Embedding-8B"
 # feat_ext="abhinand/MedEmbed-large-v0.1"
 
-num_seed_samples=10
-k=1 # number of variations
+num_seed_samples=40
+k=2 # number of variations
 few_shot="No"
 self_refinement="No"
 multi_models="No"

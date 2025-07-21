@@ -6,7 +6,10 @@ from .api import API
 import transformers
 import random
 from .utils import set_seed, get_subcategories, ALL_styles, ALL_OPENREVIEW_styles, ALL_PUBMED_styles, DISCHARGE_LETTER_STYLES, DISCHARGE_REWRITE_PROMPTS
-from .prompts import INSTRUCTION_TEMPLATES, SPECIALTIES, DOC_TYPES, STYLES, LABELS, INSTRUCTION_TEMPLATES_WITH_SUMMARIES
+from .prompts import INSTRUCTION_TEMPLATES, SPECIALTIES, DOC_TYPES, \
+                     STYLES, LABELS, INSTRUCTION_TEMPLATES_WITH_SUMMARIES, \
+                     FEW_SHOT_EXAMPLES, INSTRUCTION_TEMPLATES_WITH_EXAMPLES, \
+                     SELF_REF_PROMPTS, INSTRUCTION_TEMPLATES_BAD_PROMPTS
 import re
 import collections
 from collections import Counter
@@ -30,8 +33,9 @@ class HFAPI(API):
                  random_sampling_batch_size, num_beams, dry_run,
                  variation_batch_size, 
                  percentage_of_summaries, summaries_path, 
-                #  diversity_number, 
                  length_mean, length_std, length_min, length_max,
+                 few_shot, self_refinement, bad_prompts,
+                 multi_models, model_one, model_two,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -66,11 +70,17 @@ class HFAPI(API):
 
         self.percentage_of_summaries = percentage_of_summaries
         self.summaries_path = summaries_path
-        # self.diversity_number = diversity_number
         self.length_mean = length_mean
         self.length_std = length_std
         self.length_min = length_min
         self.length_max = length_max
+
+        self.few_shot = few_shot
+        self.self_refinement = self_refinement
+        self.multi_models = multi_models
+        self.model_one = model_one
+        self.model_two = model_two
+        self.bad_prompts = bad_prompts
   
         if model_name_or_path=="gpt2":
             self.use_ollama = False
@@ -79,7 +89,7 @@ class HFAPI(API):
 
         if self.use_ollama:
             try:
-                response = requests.get('http://localhost:11435/api/tags')
+                response = requests.get('http://localhost:11434/api/tags')
                 if response.status_code != 200:
                     raise ConnectionError("Ollama server not responding")
             except Exception as e:
@@ -87,7 +97,7 @@ class HFAPI(API):
                 print("Make sure 'ollama serve' is running in another terminal")
                 exit(1)
 
-            self.client = ollama.Client(host='http://localhost:11435')
+            self.client = ollama.Client(host='http://localhost:11434')
 
             response = self.client.generate(
                     model=model_name_or_path,
@@ -179,6 +189,13 @@ class HFAPI(API):
         parser.add_argument("--length_min", type=int, default=0)
         parser.add_argument("--length_max", type=int, default=0)
 
+        parser.add_argument("--few_shot", type=str, default="No")
+        parser.add_argument("--self_refinement", type=str, default="No")
+        parser.add_argument("--multi_models", type=str, default="No")
+        parser.add_argument("--model_one", type=str, default="No")
+        parser.add_argument("--model_two", type=str, default="No")
+        parser.add_argument("--bad_prompts", type=str, default="No")
+
         return parser
     
     def generate_prompts(self, num_prompts: int = 15):
@@ -206,8 +223,16 @@ class HFAPI(API):
                 target_len = max(1, round(np.random.normal(self.length_mean, self.length_std)))
             target_len = min(target_len, self.length_max)
 
-            if use_summary and len(summaries) > 0:
-                # print("\n ____USE summaries____ ", len(summaries), "\n")
+            if self.few_shot == "Yes":
+                print("___________ Few shot prompting")
+                template = random.choice(INSTRUCTION_TEMPLATES_WITH_EXAMPLES)
+                prompt = template(doc_type, specialty, style, labels_str, target_len, FEW_SHOT_EXAMPLES)
+            elif self.bad_prompts == "Yes":
+                print("___________ Bad prompting")
+                template = random.choice(INSTRUCTION_TEMPLATES_BAD_PROMPTS)
+                prompt = template(doc_type, specialty, style, labels_str, target_len)
+
+            elif use_summary and len(summaries) > 0:
                 summary = random.choice(summaries)
                 template = random.choice(INSTRUCTION_TEMPLATES_WITH_SUMMARIES)
                 prompt = template(doc_type, specialty, style, labels_str, target_len, summary)
@@ -349,14 +374,34 @@ class HFAPI(API):
                     target_len = max(1, round(np.random.normal(self.length_mean, self.length_std)))
                 target_len = min(target_len, self.length_max)
 
+                current_model = self.model_type
+                if self.multi_models == "Yes":
+                    current_model = random.choice([self.model_one, self.model_two])
+                print("current_model NAME", current_model)
+
                 response = self.client.generate(
-                    model=self.model_type,
+                    model=current_model,
                     prompt=prompt,
                     options={'temperature': self.temperature, 
                              'num_predict': target_len + 500,
                              }
                 )
                 generated_text = response["response"] 
+
+                if self.self_refinement == "Yes":
+                    print("___________ SELF refinement")
+                    labels_str = LABELS
+                    template = random.choice(SELF_REF_PROMPTS)
+                    prompt = template(generated_text, labels_str)
+
+                    response = self.client.generate(
+                        model=self.model_type,
+                        prompt=prompt,
+                        options={'temperature': self.temperature, 
+                                'num_predict': target_len + 500,
+                                }
+                    )
+                    generated_text = response["response"] 
             
             if generated_text:
                 all_data.append(generated_text)
@@ -484,8 +529,13 @@ class HFAPI(API):
                         target_len = max(1, round(np.random.normal(self.length_mean, self.length_std)))
                     target_len = min(max(target_len, len(prompt.split())), self.length_max)
 
+                    current_model = self.model_type
+                    if self.multi_models == "Yes":
+                        current_model = random.choice([self.model_one, self.model_two])
+                    print("current_model NAME", current_model)
+
                     response = self.client.generate(
-                        model=self.model_type,
+                        model=current_model,
                         prompt=prompt,
                         options={'temperature': self.temperature, 
                                 #  'num_predict': target_len,

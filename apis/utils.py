@@ -115,9 +115,18 @@ DISCHARGE_REWRITE_PROMPTS = [
     Reword clinical history and recommendations, modify the narrative portions.
     But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]].
     Letter: \n{text}""",
+
+    """
+    Can you completly rewrite this medical disharge letter. 
+    Can you rewrite it with new Diagnoses, new patient history and so on. 
+    Everything should be as for new patient. 
+    But keep structure, all sections and so on absolutly same with same style. 
+    And keep all labels and personal information (PHI) also in double brackets.
+    Letter: \n{text}
+    """,
     
     """Rewrite and rephrase this radiology discharge letter {style}. 
-    But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. 
+    But keep the PHI structure: all PHI (protected and personal information) and sensitive data should be in double brackets like [[LABEL]]. 
     Preserve the original structure and section headers, but modify the clinical content, like for the new patient.
     Letter: \n{text}""",
     
@@ -127,12 +136,12 @@ DISCHARGE_REWRITE_PROMPTS = [
     Maintain identical section organization while varying the medical details:\n{text}""",
     
     """Based on this radiology discharge letter, create a new radiology discharge letter for a new patient {style}. 
-    But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. 
+    But keep the PHI structure: all PHI (protected and personal information) and sensitive data should be in double brackets like [[LABEL]]. 
     You may reword clinical content within sections:\n{text}""",
     
     """Based on this radiology discharge letter, create a new radiology discharge letter for a new patient with a different diagnosis like . 
     Maintain the exact original structure, and sections. 
-    But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Letter:\n{text}""",
+    But keep the PHI structure: all PHI (protected and personal information) and sensitive data should be in double brackets like [[LABEL]]. Letter:\n{text}""",
 ]
 
 

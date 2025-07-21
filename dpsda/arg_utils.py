@@ -61,6 +61,12 @@ def parse_args():
         type=str,
         default='result',
         help='Folder for storing results')
+    
+    parser.add_argument(
+        '--wandb_name_s',
+        type=str,
+        default='result',
+        help='Name for wandb')
 
     parser.add_argument(
         '--feature_extractor_batch_size',
@@ -182,7 +188,7 @@ def parse_args():
     )
     parser.add_argument('--wandb_key',       default='ac521e5362cd4c188d900ed3b4c917a33f3f658d',
                         type=str,   help='API key for W&B.')
-    parser.add_argument('--project',         default='chuv-aug-pe',       type=str,
+    parser.add_argument('--project',         default='chuv-aug-pe-final',       type=str,
                         help='Name of the project - relates to W&B project names. In --savename default setting part of the savename.')
 
     args, api_args = parser.parse_known_args()

@@ -42,7 +42,7 @@ def main():
         import wandb
         _ = os.system('wandb login {}'.format(args.wandb_key))
         os.environ['WANDB_API_KEY'] = args.wandb_key
-        wandb.init(project=args.project, name=args.result_folder[7:])
+        wandb.init(project=args.project, name=args.wandb_name_s)
         wandb.config.update(args)
 
     if args.data_checkpoint_step >= len(args.num_samples_schedule) - 1:

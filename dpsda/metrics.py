@@ -457,9 +457,7 @@ def plot_embeddings_with_fixed_real(synthetic_features, title="Embeddings Visual
     plt.close()
 
 
-
-
-
+# from textstat import flesch_reading_ease
 from textstat import flesch_reading_ease
 import spacy
 from gensim import corpora, models
@@ -486,8 +484,21 @@ def compare_text_sets(real_texts, synthetic_texts, emb_real, emb_synth, result_f
     metrics.update(calculate_all_metrics_dict(emb_real, emb_synth, real_texts=real_texts, synthetic_texts=synthetic_texts))
     
 
+    # def compute_readability(texts):
+    #     scores = [flesch_reading_ease(text) for text in texts]
+    #     return np.mean(scores), np.std(scores)
+    
     def compute_readability(texts):
-        scores = [flesch_reading_ease(text) for text in texts]
+        def safe_flesch(text):
+            try:
+                return flesch_reading_ease(text)
+            except KeyError:
+                return None
+        
+        scores = [safe_flesch(text) for text in texts]
+        scores = [s for s in scores if s is not None]
+        if not scores:  # handle case where all texts failed
+            return 0, 0
         return np.mean(scores), np.std(scores)
     
     real_readability_mean, real_readability_std = compute_readability(real_texts)
@@ -553,8 +564,21 @@ def compare_text_sets_top(real_texts, synthetic_texts, emb_real, emb_synth, resu
     metrics.update(calculate_all_metrics_dict(emb_real, emb_synth, real_texts=real_texts, synthetic_texts=synthetic_texts))
     
 
+    # def compute_readability(texts):
+    #     scores = [flesch_reading_ease(text) for text in texts]
+    #     return np.mean(scores), np.std(scores)
+
     def compute_readability(texts):
-        scores = [flesch_reading_ease(text) for text in texts]
+        def safe_flesch(text):
+            try:
+                return flesch_reading_ease(text)
+            except KeyError:
+                return None
+        
+        scores = [safe_flesch(text) for text in texts]
+        scores = [s for s in scores if s is not None]
+        if not scores:  # handle case where all texts failed
+            return 0, 0
         return np.mean(scores), np.std(scores)
     
     real_readability_mean, real_readability_std = compute_readability(real_texts)
