@@ -14,9 +14,9 @@ num_tokens_from_string("tiktoken is great!", encoding)
 
 
 from dpsda.data_loader import load_data
-data_file="data/mimic/train.csv"
+data_file="data/french/train.csv"
 all_private_samples, all_private_labels, private_labels_counter, private_labels_indexer = load_data(
-        dataset="mimic",
+        dataset="french",
         data_file=data_file,
         num_samples=-1,)
 from tqdm import tqdm
@@ -51,7 +51,7 @@ for row in ax:
         iteration= iterations[idx] 
                
        
-        syn_data_file=f"result/mimic/aravhawk/llama4_sentence-t5-base/70_n0_L7_initL7_var0_mimic_rephrase_tone_rank_len1024var0_t1.0__ollama_rephrase_pr_01/{iteration}/samples.csv"
+        syn_data_file=f"result/french/aravhawk/llama4_sentence-t5-base/70_n0_L7_initL7_var0_french_rephrase_tone_rank_len1024var0_t1.0__ollama_rephrase_pr_01/{iteration}/samples.csv"
 
         if not os.path.isfile(syn_data_file):
 
@@ -95,5 +95,5 @@ for row in ax:
 
         handles, labels = col.get_legend_handles_labels()
 fig.legend(handles, labels, loc='upper center',ncol=4, bbox_to_anchor=(0.5,1.2), fontsize=14)       
-plt.savefig("result/plot/mimic_aravhawk_llama4_sentence-t5-base/length_converge.pdf", format="pdf", bbox_inches="tight")
+plt.savefig("result/plot/french_aravhawk_llama4_sentence-t5-base/length_converge.pdf", format="pdf", bbox_inches="tight")
 plt.show()

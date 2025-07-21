@@ -5,135 +5,43 @@ import time
 import functools
 import signal
 
-
-PROMPTS_templates = {
-    "init_yelp":  {
-        "sys_prompt": "You are required to write an example of review based on the provided Business Category and Review Stars that fall within the range of 1.0-5.0.",
-        "task_desc": "",
-    },
-
-    "init_openreview":  {
-        "sys_prompt": "Given the area and final decision of a research paper, you are required to provide a **detailed and long** review consisting of the following content: 1. briefly summarizing the paper in 3-5 sentences; 2. listing the strengths and weaknesses of the paper in details; 3. briefly summarizing the review in 3-5 sentences.",
-        "task_desc": "",
-    },
-
-    "init_pubmed":  {
-        "sys_prompt": "Please act as a sentence generator for the medical domain. Generated sentences should mimic the style of PubMed journal articles, using a variety of sentence structures.",
-        "task_desc":  "",
-    },
-
-    "variant_yelp":  {
-        "sys_prompt": "You are a helpful, pattern-following assistant.",
-        "task_desc": "",
-    },
-    "variant_pubmed":  {
-        "sys_prompt": "Please act as a sentence generator for the medical domain. Generated sentences should mimic the style of PubMed journal articles, using a variety of sentence structures.",
-        "task_desc":  "",
-    },
-    "variant_openreview":  {
-        # Azure default system prompt
-        "sys_prompt": "You are an AI assistant that helps people find information.",
-        "task_desc": "",
-    },
-
-}
-
-
-MIMIC_MEDICAL_NOTES_INIT_templates = [
-    "Please share an example of a patient discharge summary:",
-    "Please provide a sample of a medical discharge note:",
-    "Please generate a nurse's note for a hospital shift:",
-    "Please write an example of a clinical progress note:",
-    "Please share an example of a SOAP note from a medical chart:",
-    "Please write a sample patient admission note:",
-    "Please provide an example of an emergency department discharge summary:",
-    "Please write a typical nurse’s end-of-shift report:",
-]
-
-PUBMED_INIT_templates = [
-    "Please share an abstract for a medical research paper:",
-    "Please provide an example of an abstract for a medical research paper:",
-    "Please generate an abstract for a medical research paper:",
-    "please share an abstract for a medical research paper as an example:",
-    "please write a sample abstract for a medical research paper:",
-    "please share an example of an abstract for a medical research paper:",
-    "please write an abstract for a medical research paper as an example:",
-    "please write an abstract for a medical research paper:",
-]
-
-
-ALL_styles = ["in a casual way", "in a creative style",  "in an informal way", "casually", "in a detailed way",
-              "in a professional way", "with more details", "with a professional tone", "in a casual style", "in a professional style", "in a short way", "in a concise manner", "concisely", "briefly", "orally",
-              "with imagination", "with a tone of earnestness",  "in a grammarly-incorrect way", "with grammatical errors",  "in a non-standard grammar fashion",
-              "in an oral way", "in a spoken manner", "articulately",  "by word of mouth",  "in a storytelling tone",
-              "in a formal manner", "with an informal tone", "in a laid-back manner"]
-ALL_OPENREVIEW_styles = ["in a detailed way",  "in a professional way", "with more details",
-                         "with a professional tone",  "in a professional style",   "in a concise manner"]
-
-ALL_PUBMED_styles = ["in a professional way", "in a professional tone",  "in a professional style",   "in a concise manner",
-                     "in a creative style", "using imagination", "in a storytelling tone",  "in a formal manner", "using a variety of sentence structures"
-                     ]
-
-# ALL_MIMIC_styles = [
-#     "in a professional way", "in a professional tone", "in a professional style", 
-# #     "in a concise manner",
-# #     "in a creative style", "using imagination", "in a storytelling tone", 
-#     "in a formal manner", 
-# #     "using a variety of sentence structures"
-# ]
-
-# ALL_MIMIC_styles = [
-#     "in a professional way", "in a professional tone", "in a professional style",
-#     "in a professional clinical tone", "using concise medical terminology",
-#     "with thorough clinical details", "in a structured but natural clinical narrative",
-#     "with precise medical observations", "including relevant clinical context",
-#     "with appropriate medical abbreviations", "in a detailed but readable style"
-# ]
-
 DISCHARGE_LETTER_STYLES = [
-    "in a professional clinical tone",
-    "using precise and various clinical terminology",
-    # "with thorough discharge instructions",
-    # "with complete but concise medical details",
-    "in an academic radiology hospital discharge style",
-    # "following typical radiology discharge note structure",
-    "with variation in symptoms and plausible diagnoses",
-    "as if written by a different clinician",
+    "sur un ton clinique professionnel",
+    "en utilisant une terminologie clinique précise et variée",
+    "avec des détails médicaux complets mais concis",
+    "avec une variation des symptômes et des diagnostics plausibles",
+    "comme si écrit par un clinicien différent",
+    "sur un ton clinique professionnel",
+    "en utilisant une terminologie médicale concise",
+    "avec plus de détails cliniques",
+    "avec des observations et des détails médicaux précis",
+    "y compris le contexte clinique pertinent",
 ]
-
-# DISCHARGE_REWRITE_PROMPTS = [
-#     "Rephrase this  discharge letter {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]:\n{text}",
-#     "Rewrite this discharge summary {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Preserve the original structure and section headers verbatim, but modifying the clinical content where appropriate:\n{text}",
-#     "Rephrase this hospital discharge letter {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Maintain identical section organization while varying the medical details:\n{text}",
-#     "Rewrite this discharge document {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. You may reword clinical content within sections:\n{text}",
-#     "Rephrase this discharge note {style}. But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. And modify the narrative portions:\n{text}"
-# ]
-
 
 DISCHARGE_REWRITE_PROMPTS = [
-    """Rephrase this radiology  discharge letter {style}. 
-    Reword clinical history and recommendations, modify the narrative portions.
-    But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]].
-    Letter: \n{text}""",
-    
-    """Rewrite and rephrase this radiology discharge letter {style}. 
-    But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. 
-    Preserve the original structure and section headers, but modify the clinical content, like for the new patient.
-    Letter: \n{text}""",
-    
-    """Rephrase this hospital radiology  discharge letter {style}. 
-    Change all the clinical information and the disease, but the letter should still be about radiology.
-    And keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. 
-    Maintain identical section organization while varying the medical details:\n{text}""",
-    
-    """Based on this radiology discharge letter, create a new radiology discharge letter for a new patient {style}. 
-    But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. 
-    You may reword clinical content within sections:\n{text}""",
-    
-    """Based on this radiology discharge letter, create a new radiology discharge letter for a new patient with a different diagnosis like . 
-    Maintain the exact original structure, and sections. 
-    But keep the PHI structure: all PHI and sensitive data should be in double brackets like [[LABEL]]. Letter:\n{text}""",
+    """Reformulez en français ce petit extrait de lettre de sortie {style}.
+    Vous pouvez reformuler l'historique clinique, modifier les parties narratives.
+    Mais gardez la structure des Informations de Santé Protégées (ISP) : toutes les ISP et les données sensibles doivent être entre doubles crochets comme [[ÉTIQUETTE]].
+    Texte : \n{text}""",
+
+    """Réécrivez et reformulez en français cet extrait de lettre de sortie {style}.
+    Mais gardez la structure des Informations de Santé Protégées (ISP): toutes les ISP et les données sensibles doivent être entre doubles crochets comme [[ÉTIQUETTE]].
+    Modifiez le contenu clinique, comme pour un nouveau patient.
+    Texte : \n{text}""",
+
+    """Reformulez en français ce petit extrait de note clinique {style}.
+    Changez toutes les informations cliniques et la maladie.
+    Et gardez la structure des Informations de Santé Protégées (ISP): toutes les ISP et les données sensibles doivent être entre doubles crochets comme [[ÉTIQUETTE]].
+    Texte : \n{text}""",
+
+    """Sur la base de cet extrait de note clinique, créez une nouvelle petite note clinique avec des informations différentes {style}.
+    Mais gardez la structure des Informations de Santé Protégées (ISP): toutes les ISP et les données sensibles doivent être entre doubles crochets comme [[ÉTIQUETTE]].
+    Texte : \n{text}""",
+
+    """Sur la base de cet extrait de lettre de sortie, reformulez-le et créez une nouvelle petite note clinique.
+    Mais gardez la structure des Informations de Santé Protégées (ISP): toutes les ISP et les données sensibles doivent être entre doubles crochets comme [[ÉTIQUETTE]]. Texte : \n{text}""",
 ]
+
 
 
 def set_seed(seed, n_gpu=0):

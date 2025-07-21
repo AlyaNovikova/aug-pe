@@ -17,7 +17,7 @@ from sentence_transformers import SentenceTransformer
 
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
 
 def main():
     args, api = parse_args()
@@ -29,11 +29,12 @@ def main():
         model_feat_extr = SentenceTransformer(
             args.feature_extractor,
             device=device,
+            local_files_only=True
         )
         print(model_feat_extr)
 
     else: 
-        model_feat_extr = SentenceTransformer(args.feature_extractor)
+        model_feat_extr = SentenceTransformer(args.feature_extractor, local_files_only=True)
 
     reducer = None
     real_reduced = None
@@ -367,7 +368,7 @@ def main():
                     print("diversity_number", diversity_number)
                     print()
                     diverse_samples, labels, _, _ = api.text_random_sampling(num_samples=diversity_number,
-                                                                             prompt_counter=Counter({'mimic': 100}), 
+                                                                             prompt_counter=Counter({'french': 100}), 
                                                                              lens_dict=None)
 
 

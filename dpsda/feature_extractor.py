@@ -25,8 +25,7 @@ def extract_features(
         model_name="all-mpnet-base-v2", sentence_transformer=True, max_tokens=512):
     # If available, the model is automatically executed on the GPU. You can specify the device for the model like this:
 
-    print("len(data)", len(data))
-    print("batch_size", batch_size)
+    print("extract_features parametrs", model, model_name, sentence_transformer, max_tokens)
 
     print("len(data)", len(data))
     print("batch_size", batch_size)
@@ -94,6 +93,7 @@ def extract_features(
             model = SentenceTransformer(
                 model_name,
                 device=device,
+                local_files_only=True
             )
             print(model)
 

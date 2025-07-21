@@ -57,6 +57,14 @@ def eval_one_file(syn_fname, all_original_embeddings, model_name_or_path, csv_fn
         print(len(df))  
         synthetic_data = df['text'].tolist()
         print("--- syn data len 2 ---", (len(synthetic_data)))
+    elif dataset == "french":
+        print("This is FRENCH")
+        synthetic_data = [d for d in syn_data['train']['text']]
+        print("--- syn data len 1 ---", (len(synthetic_data)))
+        df = pd.read_csv(syn_fname)
+        print(len(df))  
+        synthetic_data = df['text'].tolist()
+        print("--- syn data len 2 ---", (len(synthetic_data)))
 
     else:
         synthetic_data = [d for d in syn_data['train']['text']]
@@ -194,7 +202,7 @@ def main():
                        required=False)
     
     parser.add_argument("--real_path", type=str,
-                       default="data/mimic/train.csv",
+                       default="data/french/train.csv",
                        required=False)
 
     parser.add_argument("--model_name_or_path", type=str,
@@ -206,7 +214,7 @@ def main():
     parser.add_argument("--k", type=int, required=False, default=3)
     parser.add_argument("--run", type=int, required=False, default=1)
     parser.add_argument("--dataset", type=str, default="yelp",
-                       choices=["yelp", "pubmed", "openreview", "mimic"],
+                       choices=["yelp", "pubmed", "openreview", "mimic", "french"],
                        required=False)
     parser.add_argument("--wandb_project", type=str, default="synthetic_data_evaluation_check",
                        help="Weights & Biases project name")
@@ -232,6 +240,7 @@ def main():
         "pubmed": f"result/embeddings/{args.model_name_or_path}/pubmed_train_all.embeddings.npz",
         "openreview": f"result/embeddings/{args.model_name_or_path}/openreview_train_all.embeddings.npz",
         "mimic": f"result/embeddings/{args.model_name_or_path}/mimic_train_all.embeddings.npz",
+        "french": f"result/embeddings/{args.model_name_or_path}/french_train_all.embeddings.npz",
     }
     args.train_data_embeddings_file = dataset2embedding_file[args.dataset]
 

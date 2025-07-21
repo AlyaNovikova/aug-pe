@@ -154,13 +154,13 @@ def log_samples(samples, additional_info, folder):
         labels = additional_info[i]
         if seq:
             # seq = " ".join(seq.split())
-            if "pubmed" in labels or "mimic" in labels:
+            if "pubmed" in labels or "mimic" in labels or "french" in labels:
                 all_data.append([seq])
             else:
                 labels = labels.strip().split("\t")
                 all_data.append([seq]+labels)
 
-    if "pubmed" in additional_info[0] or "mimic" in additional_info[0]:  # unconditional
+    if "pubmed" in additional_info[0] or "mimic" in additional_info[0] or "french" in additional_info[0]:  # unconditional
         title = ['text']
     else:
         title = ['text', 'label1', 'label2']

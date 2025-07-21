@@ -5,6 +5,9 @@ result/
 wandb/
 utility_eval/tmp/
 
+models2/
+models/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 */__pycache__/

@@ -18,11 +18,15 @@ case $1 in
     # export CUDA_VISIBLE_DEVICES=0
     python pre_comp_emb.py --dataset mimic --model_name_or_path 'Qwen/Qwen3-Embedding-8B'
     ;;
+  --french)
+    export CUDA_VISIBLE_DEVICES=2
+    python pre_comp_emb.py --dataset french --model_name_or_path 'models2/french_downloading/model_emb_qwen'
+    ;;
   --yelp)
     python pre_comp_emb.py --dataset yelp --model_name_or_path 'stsb-roberta-base-v2'
     ;;
   *)
-    echo "Invalid dataset. Available datasets are: --openreview, --pubmed, --mimic, --yelp"
+    echo "Invalid dataset. Available datasets are: --openreview, --pubmed, --mimic, --yelp, --french"
     exit 1
     ;;
 esac

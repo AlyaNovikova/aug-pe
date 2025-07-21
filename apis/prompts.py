@@ -1,397 +1,191 @@
-# LABELS = [
-#     "[[NAME:Medical_personnel]]", "[[NAME:patient]]", "[[NAME:other]]",
-#     "[[ADDRESS]]", "[[DATE]]",
-#     "[[CONTACT: Telephone]]", "[[CONTACT: Fax]]", "[[CONTACT: Email]]",
-#     "[[ID: SocialID]]", "[[ID: MedicalID]]", "[[ID: InsuranceID]]",
-#     "[[NUMBER: Account]]", "[[NUMBER: License]]", "[[NUMBER: VehicleID]]", "[[NUMBER: DeviceID]]",
-#     "[[URL]]", "[[IPAdress]]",
-#     "[[DEMOGRAPHIC: Age]]", "[[DEMOGRAPHIC: CivilStatus]]", "[[DEMOGRAPHIC: Nationality]]", "[[DEMOGRAPHIC: Profession]]",
-#     "[[HOSPITAL: Service]]", "[[HOSPITAL: Building]]", "[[HOSPITAL: Room-Bed]]",
-#     "[[PersonalRelation]]"
-# ]
-
 LABELS = [
-    "[[NAME-1A]]", "[[NAME-1M]]", "[[NAME-1F]]", "[[NAME-2A]]",
-    "[[NAME-2M]]", "[[NAME-2F]]", "[[NAME-3A]]", "[[NAME-3M]]",
-    "[[NAME-3F]]", "[[AGE]]", "[[CONTACT]]", "[[DATE]]",
-    "[[HOSPITAL]]", "[[ID]]", "[[LANGUAGE]]", "[[LOCATION]]",
-    "[[PROFESSION]]", "[[OTHER]]"
+    "[[DÉMOGRAPHIE:ÂGE]]",
+    "[[EMPLACEMENT:NUMÉRO_HABITATION]]",
+    "[[EMPLACEMENT:RUE]]",
+    "[[ORGANISATION]]",
+    "[[EMPLACEMENT:EMPLACEMENT_GÉOGRAPHIQUE]]",
+    "[[PERSONNES:LIEN_DE_PARENTÉ]]",
+    "[[CONTACT:FAX]]",
+    "[[EMPLACEMENT:CODE_POSTAL]]",
+    "[[CHUV:STRUCTURE_RÉFÉRENCE]]",
+    "[[NOM:PERSONNEL_MÉDICAL]]",
+    "[[EMPLACEMENT:PAYS]]",
+    "[[TEMPORAL:DATE]]",
+    "[[NOM:PATIENT_E]]",
+    "[[TEMPORAL:TEMPS]]",
+    "[[CHUV:BÂTIMENT_CHAMBRE_OU_LIT]]",
+    "[[ID:NUMÉRO_BON]]",
+    "[[EMPLACEMENT:CODE_CANTON]]",
+    "[[CONTACT:TÉLÉPHONE]]",
+    "[[ID:NUMÉRO_SÉJOUR]]"
 ]
 
 STYLES = [
-    "in a professional way", "in a professional tone", "in a professional style",
-    "in a professional clinical tone", "using concise medical terminology",
-    "with thorough clinical details", "in a structured but natural clinical narrative",
-    "with precise medical observations", "including relevant clinical context",
-    "with appropriate medical abbreviations", "in a detailed but readable style"
+    "de manière professionnelle",
+    "sur un ton professionnel",
+    "dans un style professionnel",
+    "sur un ton clinique professionnel",
+    "en utilisant une terminologie médicale concise",
+    "avec des détails cliniques approfondis",
+    "dans un récit clinique structuré mais naturel",
+    "avec des observations médicales précises",
+    "y compris le contexte clinique pertinent",
+    "avec les abréviations médicales appropriées",
+    "dans un style détaillé mais lisible"
 ]
 
 DOC_TYPES = [
-    "discharge summary", 
-    # "radiology report",
-    # "consultation note", "progress note", "operative report",
-    # "emergency room note", "pathology report", "nursing note",
-    # "physician's order", "admission note", "clinical discharge note", "outpatient clinic note"
-    ]
-
-# SPECIALTIES = [
-#     "cardiology", "neurology", "oncology", "pediatrics", "orthopedics",
-#     "internal medicine", "general surgery", "psychiatry", "endocrinology",
-#     "pulmonology", "gastroenterology", "nephrology"
-# ]
+    "compte rendu de sortie",
+    "compte rendu de radiologie",
+    "note de sortie clinique",
+]
 
 SPECIALTIES = [
-    "neuroradiology", 
-    "musculoskeletal radiology",
-    "oncology",
-    "radiology oncology"
-    "abdominal radiology",
-    "chest radiology",
-    "breast imaging",
-    "interventional radiology",
-    "pediatric radiology",
-    "cardiothoracic radiology",
-    "emergency radiology",
-    "nuclear medicine"
+    "neuroradiologie",
+    "radiologie musculo-squelettique",
+    "oncologie",
+    "oncologie radiologique",
+    "radiologie abdominale",
+    "radiologie thoracique",
+    "imagerie du sein",
+    "radiologie interventionnelle",
+    "radiologie pédiatrique",
+    "radiologie cardiothoracique",
+    "radiologie d'urgence",
+    "médecine nucléaire"
 ]
-
-MIMIC_SECTIONS = """
-1. Header with Name and Unit No, ID, Admission Date, Discharge Date, Date of Birth, Sex, Service
-2. Allergies
-3. Attending Physician
-4. Chief Complaint
-5. Major Surgical Procedure
-6. History of Present Illness
-7. Past Medical History
-8. Social History
-9. Family History
-10. Physical Exam (Admission)
-11. Physical Exam (Discharge)
-12. Pertinent Results (Admission)
-13. Pertinent Results (Discharge)
-14. Microbiology Results
-15. Imaging Results
-16. Brief Hospital Course
-17. Medications on Admission
-18. Discharge Medications
-19. Discharge Disposition
-20. Discharge Facility
-21. Discharge Diagnosis
-22. Discharge Condition
-23. Discharge Instructions
-24. Followup Instructions
-"""
 
 INSTRUCTION_TEMPLATES = [
-        lambda doc, spec, sty, lbl, length: f"""Generate a synthetic {doc} for a {spec} case {sty}. 
-        Write a long text, use approximatly {length} words.
-        Generate it in the exact style of medical discharge letter.
-        The text should be realistic and resemble actual medical documentation.
-        Replace all PHI and sensitive data with labels from this list in double brackets [[label]]: {lbl}. 
+    lambda doc, spec, sty, lbl, length: f"""Générez un {doc} synthétique en français pour un cas de {spec} {sty}.
+    Écrivez un long texte, utilisez environ {length} mots.
+    Générez-le dans le style exact d'une lettre de sortie médicale.
+    Le texte doit être réaliste et ressembler à une véritable documentation médicale.
+    Remplacez toutes les informations de santé protégées (Informations de Santé Protégées (ISP)) et les données sensibles par des étiquettes de cette liste entre doubles crochets [[étiquette]]: {lbl}.
+    Ajoutez des sections comme :
+        - Démographie du patient
+        - Historique médical
+        - Maladie actuelle
+        - Examens physiques
+        - Résultats des tests
+        - Parcours hospitalier
+        - Informations de sortie
+        - Plan de suivi.
 
-        Add sections like 
-            - Patient Demographics
-            - Medical History
-            - Present Illness
-            - Physical Exams
-            - Test Results
-            - Hospital Course
-            - Discharge Information
-            - Follow-up Plan.
-        
-        Make sure the text flows naturally and maintains proper medical terminology.
-        
-        CRITICAL INSTRUCTIONS:
-        - ALL PHI must use [[LABEL]] format - no exceptions
-        - Newline (\n) between every section
-        - Use ==== dividers between major sections
+    Assurez-vous que le texte coule naturellement et maintient une terminologie médicale appropriée.
 
-        """,
-    
-
-
-        lambda doc, spec, sty, lbl, length: f"""Write a synthetic {doc} in narrative form {sty} for a {spec} patient. 
-        Generate it in the exact style of medical discharge letter. Write a long text, use approximatly {length} words.
-    Don't structure it too much. It should be a natural medical live recording.
-    Include and Replace all PHI/sensitive data with labels from this list in double brackets like this [[LABEL]], use only this labels: {lbl}. 
-    Begin with patient presentation, then describe:
-            1. Patient Header (demographics)
-            2. Chief Complaint
-            3. History of Present Illness
-            4. Past Medical History
-            5. Physical Exam
-            6. Hospital Course
-            7. Labs/Imaging
-            8. Discharge Diagnosis
-            9. Discharge Medications
-            10. Discharge Instructions
-            11. Follow-up Plan
-    
-    CRITICAL INSTRUCTIONS:
-        - ALL PHI must use [[LABEL]] format - no exceptions. Put all Protected Health Information into the [[label]] format 
-        - Newline (\n) between every section
-        - Use ==== dividers between major sections
-
+    INSTRUCTIONS CRITIQUES :
+    - TOUTES LES Informations de Santé Protégées (ISP) doivent utiliser le format [[ÉTIQUETTE]] - sans exception
     """,
 
-        lambda doc, spec, sty, lbl, length: f"""Generate a synthetic {doc} for a {spec} case {sty} following medical discharge letter structure.
-Write a long text, use approximatly {length} words.
-    REQUIRED SECTIONS (maybe not all of them and you can add more different) (separated by newlines):
-    1. Patient header (Name, Unit#, Admission/Discharge dates, DOB, Sex, Service)
+    lambda doc, spec, sty, lbl, length: f"""Écrivez un {doc} synthétique en français sous forme narrative {sty} pour un patient {spec}.
+    Générez-le dans le style exact d'une lettre de sortie médicale. Écrivez un long texte, utilisez environ {length} mots.
+    Ne le structurez pas trop. Cela doit être un enregistrement médical naturel.
+    Incluez et remplacez toutes les Informations de Santé Protégées (ISP)/données sensibles par des étiquettes de cette liste entre doubles crochets comme ceci [[ÉTIQUETTE]], utilisez uniquement ces étiquettes : {lbl}.
+    Commencez par la présentation du patient, puis décrivez :
+        1. En-tête du patient (démographie)
+        2. Plainte principale
+        3. Historique de la maladie actuelle
+        4. Antécédents médicaux
+        5. Examen physique
+        6. Parcours hospitalier
+        7. Laboratoires/Imagerie
+        8. Diagnostic de sortie
+        9. Médicaments de sortie
+        10. Instructions de sortie
+        11. Plan de suivi
+
+    INSTRUCTIONS CRITIQUES :
+        - TOUTES LES Informations de Santé Protégées (ISP) doivent utiliser le format [[ÉTIQUETTE]] - sans exception. Mettez toutes les informations de santé protégées au format [[étiquette]]
+    """,
+
+    lambda doc, spec, sty, lbl, length: f"""Générez un {doc} synthétique en français pour un cas de {spec} {sty} en suivant la structure d'une lettre de sortie médicale.
+    Écrivez un long texte, utilisez environ {length} mots.
+    SECTIONS REQUISES (peut-être pas toutes et vous pouvez en ajouter d'autres) (séparées par des sauts de ligne) :
+    1. En-tête du patient (Nom, Numéro d'unité, Dates d'admission/de sortie, Date de naissance, Sexe, Service)
     2. Allergies
-    3. Chief Complaint
-    4. History of Present Illness (with detailed timeline)
-    5. Past Medical History
-    6. Social History
-    7. Physical Exam (with system-based bullet points)
-    8. Pertinent Results (lab format with timestamps)
-    9. Brief Hospital Course
-    10. Discharge Diagnoses
-    11. Discharge Medications (formatted list)
-    12. Discharge Instructions
-    13. Follow-up Information
+    3. Plainte principale
+    4. Historique de la maladie actuelle (avec chronologie détaillée)
+    5. Antécédents médicaux
+    6. Historique social
+    7. Examen physique (avec des points à puces basés sur les systèmes)
+    8. Résultats pertinents (format de laboratoire avec horodatages)
+    9. Parcours hospitalier bref
+    10. Diagnostics de sortie
+    11. Médicaments de sortie (liste formatée)
+    12. Instructions de sortie
+    13. Informations de suivi
+    RÈGLES D'ÉTIQUETAGE DES Informations de Santé Protégées (ISP) :
+    - Utilisez UNIQUEMENT ces formats [[ÉTIQUETTE]] : {lbl}
+    - Étiquetez TOUTES les instances de : noms, dates, identifiants, contacts, lieux
+    - Étiquetez toutes les autres informations de santé protégées mais uniquement avec les étiquettes de la liste des étiquettes : {lbl}
+    - Incluez au moins 10 instances [[ÉTIQUETTE]] tout au long du document
+    DIRECTIVES DE CONTENU :
+    - Maintenez un flux clinique réaliste pour {spec}
+    - Utilisez une terminologie médicale appropriée
+    - Faites en sorte que les [[ÉTIQUETTES]] se fondent naturellement dans le texte""",
 
-    PHI TAGGING RULES:
-    - Use ONLY these [[LABEL]] formats: {lbl}
-    - Tag ALL instances of: names, dates, IDs, contacts, locations
-    - Tag all other Protected Health Information but only with labels from labels list: {lbl}
-    - Include at least 8 [[TAG]] instances throughout document
-
-    FORMATTING REQUIREMENTS:
-    - Newline (\n) between every section
-    - Use ==== dividers between major sections
-    - Bulleted physical exam findings
-    - Indented medication lists
-
-    CONTENT GUIDELINES:
-    - Maintain realistic clinical flow for {spec}
-    - Use appropriate medical terminology
-    - Make [[TAGS]] blend naturally into text""",
-
-        lambda doc, spec, sty, lbl, length: f"""Create a {doc} for {spec} {sty} that perfectly mimics medical discharge letter documentation style.
-Write a long text, use approximatly {length} words.
-    You can use this DOCUMENT STRUCTURE or you can change it, do in a medical discharge letter style:
-        1. Header with Name and Unit No, ID, Admission Date, Discharge Date, Date of Birth, Sex, Service
+    lambda doc, spec, sty, lbl, length: f"""Créez un {doc} pour {spec} {sty} qui imite parfaitement le style de documentation d'une lettre de sortie médicale.
+    Écrivez un long texte, utilisez environ {length} mots.
+    Vous pouvez utiliser cette STRUCTURE DE DOCUMENT ou vous pouvez la modifier, faites-le dans le style d'une lettre de sortie médicale :
+        1. En-tête avec Nom et Numéro d'unité, ID, Date d'admission, Date de sortie, Date de naissance, Sexe, Service
         2. Allergies
-        3. Attending Physician
-        4. Chief Complaint
-        5. Major Surgical Procedure
-        6. History of Present Illness
-        7. Past Medical History
-        8. Social History
-        9. Family History
-        10. Physical Exam (Admission)
-        11. Physical Exam (Discharge)
-        12. Pertinent Results (Admission)
-        13. Pertinent Results (Discharge)
-        14. Microbiology Results
-        15. Imaging Results
-        16. Brief Hospital Course
-        17. Medications on Admission
-        18. Discharge Medications
-        19. Discharge Disposition
-        20. Discharge Facility
-        21. Discharge Diagnosis
-        22. Discharge Condition
-        23. Discharge Instructions
-        24. Followup Instructions
+        3. Médecin traitant
+        4. Plainte principale
+        5. Procédure chirurgicale majeure
+        6. Historique de la maladie actuelle
+        7. Antécédents médicaux
+        8. Historique social
+        9. Antécédents familiaux
+        10. Examen physique (Admission)
+        11. Examen physique (Sortie)
+        12. Résultats pertinents (Admission)
+        13. Résultats pertinents (Sortie)
+        14. Résultats de microbiologie
+        15. Résultats d'imagerie
+        16. Parcours hospitalier bref
+        17. Médicaments à l'admission
+        18. Médicaments de sortie
+        19. Disposition de sortie
+        20. Établissement de sortie
+        21. Diagnostic de sortie
+        22. Condition de sortie
+        23. Instructions de sortie
+        24. Instructions de suivi
+    Exigences clés : toutes les Informations de Santé Protégées (ISP) (Informations de santé protégées) doivent être étiquetées entre doubles crochets [[ ]].
+    Et utilisez uniquement ces étiquettes Informations de Santé Protégées (ISP) : {lbl}
+    INSTRUCTIONS CRITIQUES :
+    - TOUTES LES Informations de Santé Protégées (ISP) doivent utiliser le format [[ÉTIQUETTE]] - sans exception
+    - Maintenez un flux narratif clinique naturel""",
 
-    Key requirements: all PHI (Protected Health Information) must be tagged in double brackets [[ ]]. 
-    And use only these PHI labels: {lbl}
-
-    CRITICAL INSTRUCTIONS:
-    - ALL PHI must use [[LABEL]] format - no exceptions
-    - ==== dividers between major sections
-    - Newline (\n) between every section
-    - Maintain natural clinical narrative flow""",
-
-        lambda doc, spec, sty, lbl, length : f"""Generate a {doc} for {spec} {sty} adhering strictly to medical discharge letter conventions.
-Write a long text, use approximatly {length} words.
-    You can write with some of the following sections:
-        1. Header with Name and Unit No, ID, Admission Date, Discharge Date, Date of Birth, Sex, Service
+    lambda doc, spec, sty, lbl, length: f"""Générez un {doc} en français pour {spec} {sty} en adhérant strictement aux conventions de la lettre de sortie médicale.
+    Écrivez un long texte, utilisez environ {length} mots.
+    Vous pouvez écrire avec certaines des sections suivantes :
+        1. En-tête avec Nom et Numéro d'unité, ID, Date d'admission, Date de sortie, Date de naissance, Sexe, Service
         2. Allergies
-        3. Attending Physician
-        4. Chief Complaint
-        5. Major Surgical Procedure
-        6. History of Present Illness
-        7. Past Medical History
-        8. Social History
-        9. Family History
-        10. Physical Exam (Admission)
-        11. Physical Exam (Discharge)
-        12. Pertinent Results (Admission)
-        13. Pertinent Results (Discharge)
-        14. Microbiology Results
-        15. Imaging Results
-        16. Brief Hospital Course
-        17. Medications on Admission
-        18. Discharge Medications
-        19. Discharge Disposition
-        20. Discharge Facility
-        21. Discharge Diagnosis
-        22. Discharge Condition
-        23. Discharge Instructions
-        24. Followup Instructions
-
-    You should put all PHI TAGGING in double brackets [[ ]], 
-    so all Protected Health Information must be classified with one of the labels with the format of [[]]:  {lbl} 
-
-    FORMATTING RULES:
-    1. ALL PHI must use [[LABEL]] format - no exceptions
-    2. \n between all sections
-    3. ==== dividers after key sections"""
-
-]
-
-
-INSTRUCTION_TEMPLATES_WITH_SUMMARIES = [
-    lambda doc, spec, sty, lbl, length, summary: f"""You are writing a synthetic {doc} for a {spec} patient in the style of a medical discharge letter.
-Write a long text, use approximatly {length} words.
-    BEGINNING SUMMARY (REAL, FOR REFERENCE):
-    ---
-    {summary}
-    ---
-
-    Use this summary as inspiration. You MUST expand it significantly into a full-length document. Match the tone and structure, but increase the level of detail and medical reasoning.
-
-    REQUIREMENTS:
-    - Include all standard discharge summary sections
-    - Use appropriate clinical language and reasoning
-    - Make the document **longer and more detailed** than the summary
-    - Replace ALL sensitive data using the following PHI tags in double brackets [[LABEL]]: {lbl}
-
-    FORMATTING:
-    - Use newline (\n) between sections
-    - Use ==== dividers between major sections
-    - Include at least 8 instances of [[PHI]] tags
-
-    Tone: {sty}""",
-
-
-    lambda doc, spec, sty, lbl, length, summary: f"""Write a detailed, narrative-style synthetic {doc} for a {spec} case, using the real summary below as a guide:
-Write a long text, use approximatly {length} words.
-    REAL SUMMARY:
-    ---
-    {summary}
-    ---
-
-    TASK:
-    Expand this summary into a much longer document in the form of a medical discharge letter. Use it as a **base for structure and content ideas**, but enrich it with in-depth clinical reasoning, findings, diagnostics, and outcomes.
-
-    INSTRUCTIONS:
-    - The final output should be significantly **longer and more thorough** than the summary.
-    - Use only these PHI labels in [[LABEL]] format: {lbl}
-    - Mimic realistic clinical tone and terminology
-
-    RECOMMENDED FLOW:
-    1. Patient header (Name, Unit#, Admission/Discharge dates, DOB, Sex, Service)
-    2. Allergies
-    3. Chief Complaint
-    4. History of Present Illness (with detailed timeline)
-    5. Past Medical History
-    6. Social History
-    7. Physical Exam (with system-based bullet points)
-    8. Pertinent Results (lab format with timestamps)
-    9. Brief Hospital Course
-    10. Discharge Diagnoses
-    11. Discharge Medications (formatted list)
-    12. Discharge Instructions
-    13. Follow-up Information
-
-    FORMATTING:
-    - Use \n between sections
-    - Use ==== as dividers for major blocks
-    - Include at least 8 different [[PHI]] placeholders throughout""",
-
-
-    lambda doc, spec, sty, lbl, length, summary: f"""Generate a synthetic {doc} in the style of a professional medical discharge letter for a {spec} case.
-Write a long text, use approximatly {length} words.
-    Below is a real discharge summary:
-    ---
-    {summary}
-    ---
-
-    Your task is to reconstruct a **full clinical case** from this short summary. Expand it into a longer, structured, and fully detailed discharge summary.
-
-    CRITICAL GUIDELINES:
-    - Write more than the original summary; include nuanced details, timelines, findings, and follow-up care
-    - Replace all PHI using only the following tags in double brackets [[LABEL]]: {lbl}
-    - Maintain realistic medical structure, language, and progression
-
-    FORMATTING:
-    - \n between sections
-    - ==== dividers between major blocks
-    - At least 8 instances of [[PHI]] labels
-
-    Tone should be: {sty}""",
-
-
-        lambda doc, spec, sty, lbl, length, summary: f"""Simulate a full medical discharge encounter as a synthetic {doc} for a {spec} case, written in {sty}.
-Write a long text, use approximatly {length} words.
-    REAL CLINICAL SUMMARY (USED AS A BACKDROP):
-    ---
-    {summary}
-    ---
-
-    Do NOT repeat the summary. Instead, simulate what the **full encounter** might have looked like based on it. Include realistic expansion of each phase of the patient's hospital stay.
-
-    IMPORTANT:
-    - The generated document should be significantly **longer and richer** than the summary
-    - Tag all PHI using double brackets with ONLY these labels: {lbl}
-
-    SUGGESTED SECTIONS:
-    1. Patient header (Name, Unit#, Admission/Discharge dates, DOB, Sex, Service)
-    2. Allergies
-    3. Chief Complaint
-    4. History of Present Illness (with detailed timeline)
-    5. Past Medical History
-    6. Social History
-    7. Physical Exam (with system-based bullet points)
-    8. Pertinent Results (lab format with timestamps)
-    9. Brief Hospital Course
-    10. Discharge Diagnoses
-    11. Discharge Medications (formatted list)
-    12. Discharge Instructions
-    13. Follow-up Information""",
-
-
-    lambda doc, spec, sty, lbl, length, summary: f"""Generate a synthetic {doc} for a {spec} case {sty}, using the exact style of a real medical discharge letter.
-Write a long text, use approximatly {length} words.
-    Your task is to reconstruct a **full clinical case** from this short summary.
-    USE THIS REAL SUMMARY AS YOUR GUIDE:
-    ---
-    {summary}
-    ---
-
-    USE IT AS A BASE to match:
-    - Structure and section flow
-    - Style and tone
-    - Clinical phrasing
-
-    Do not copy it directly. Use it to inspire the synthetic case.
-
-    REQUIREMENTS:
-    - Replace all PHI and sensitive information with labels from this list: {lbl}. Use double brackets like  [[DATE]], etc.
-    - Maintain realism, clinical logic, and coherent progression.
-    - Use professional medical terminology.
-
-    RECOMMENDED SECTIONS:
-    1. Patient Header (demographics)
-    2. Chief Complaint
-    3. History of Present Illness
-    4. Past Medical History
-    5. Physical Exam
-    6. Hospital Course
-    7. Labs/Imaging
-    8. Discharge Diagnosis
-    9. Discharge Medications
-    10. Discharge Instructions
-    11. Follow-up Plan
-
-    CRITICAL INSTRUCTIONS:
-    - ALL PHI must be tagged in [[LABEL]] format, no exceptions
-    - Stick to the tone, structure, and detail level shown in the summary above.
-    """
-
-
+        3. Médecin traitant
+        4. Plainte principale
+        5. Procédure chirurgicale majeure
+        6. Historique de la maladie actuelle
+        7. Antécédents médicaux
+        8. Historique social
+        9. Antécédents familiaux
+        10. Examen physique (Admission)
+        11. Examen physique (Sortie)
+        12. Résultats pertinents (Admission)
+        13. Résultats pertinents (Sortie)
+        14. Résultats de microbiologie
+        15. Résultats d'imagerie
+        16. Parcours hospitalier bref
+        17. Médicaments à l'admission
+        18. Médicaments de sortie
+        19. Disposition de sortie
+        20. Établissement de sortie
+        21. Diagnostic de sortie
+        22. Condition de sortie
+        23. Instructions de sortie
+        24. Instructions de suivi
+    Vous devez mettre tout l'ÉTIQUETAGE DES Informations de Santé Protégées (ISP) entre doubles crochets [[ ]],
+    donc toutes les informations de santé protégées doivent être classées avec l'une des étiquettes au format [[ ]] : {lbl}
+    RÈGLES DE FORMATAGE :
+    1. TOUTES LES Informations de Santé Protégées (ISP) doivent utiliser le format [[ÉTIQUETTE]] - sans exception"""
 ]

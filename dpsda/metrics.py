@@ -462,7 +462,7 @@ def plot_embeddings_with_fixed_real(synthetic_features, title="Embeddings Visual
 
 from textstat import flesch_reading_ease
 import spacy
-from gensim import corpora, models
+# from gensim import corpora, models
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.decomposition import LatentDirichletAllocation
