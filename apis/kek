@@ -1,0 +1,35 @@
+Generate a synthetic {doc} for a {spec} case {sty} following medical document structure.
+
+Write a long text, use approximatly {length} words.
+Include and Replace all PHI/sensitive data with labels from this list in double brackets like this [[LABEL]], use only this labels: {lbl}.
+
+    REQUIRED SECTIONS (maybe not all of them and you can add more different) (separated by newlines):
+    1. Patient header (Name, Unit#, Admission/Discharge dates, DOB, Sex, Service)
+    2. Allergies
+    3. Chief Complaint
+    4. History of Present Illness (with detailed timeline)
+    5. Past Medical History
+    6. Social History
+    7. Physical Exam (with system-based bullet points)
+    8. Pertinent Results (lab format with timestamps)
+    9. Brief Hospital Course
+    10. Discharge Diagnoses
+    11. Discharge Medications (formatted list)
+    12. Discharge Instructions
+    13. Follow-up Information
+
+    PHI TAGGING RULES:
+    - Use ONLY these [[LABEL]] formats: {lbl}
+    - Tag ALL instances of: names, dates, IDs, contacts, locations
+    - Tag all other Protected Health Information but only with labels from labels list: {lbl}
+
+    FORMATTING REQUIREMENTS:
+    - Newline (\n) between every section
+    - Use ==== dividers between major sections
+    - Bulleted physical exam findings
+    - Indented medication lists
+
+    CONTENT GUIDELINES:
+    - Maintain realistic clinical flow for {spec}
+    - Use appropriate medical terminology
+    - Make [[TAGS]] blend naturally into text

@@ -42,7 +42,8 @@ def main():
         import wandb
         _ = os.system('wandb login {}'.format(args.wandb_key))
         os.environ['WANDB_API_KEY'] = args.wandb_key
-        wandb.init(project=args.project, name=args.wandb_name_s)
+        max_group_name = min(128, len(args.wandb_name_s)) - 1
+        wandb.init(project=args.project, name=args.wandb_name_s, group=args.wandb_name_s[:max_group_name])
         wandb.config.update(args)
 
     if args.data_checkpoint_step >= len(args.num_samples_schedule) - 1:
@@ -368,7 +369,7 @@ def main():
                     print()
                     diverse_samples, labels, _, _ = api.text_random_sampling(num_samples=diversity_number,
                                                                              prompt_counter=Counter({'mimic': 100}), 
-                                                                             lens_dict=None)
+                                                                             lens_dict=None, is_diversity=True)
 
 
                     replace_indices = np.random.choice(len(new_variants_samples), size=diversity_number, replace=False)

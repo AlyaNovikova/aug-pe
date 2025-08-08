@@ -140,6 +140,8 @@ INSTRUCTION_TEMPLATES = [
 
         lambda doc, spec, sty, lbl, length: f"""Generate a synthetic {doc} for a {spec} case {sty} following medical discharge letter structure.
 Write a long text, use approximatly {length} words.
+Include and Replace all PHI/sensitive data with labels from this list in double brackets like this [[LABEL]], use only this labels: {lbl}.
+
     REQUIRED SECTIONS (maybe not all of them and you can add more different) (separated by newlines):
     1. Patient header (Name, Unit#, Admission/Discharge dates, DOB, Sex, Service)
     2. Allergies
@@ -274,6 +276,7 @@ Write a long text, use approximatly {length} words.
 
     lambda doc, spec, sty, lbl, length, summary: f"""Write a detailed, narrative-style synthetic {doc} for a {spec} case, using the real summary below as a guide:
 Write a long text, use approximatly {length} words.
+Include and Replace all PHI/sensitive data with labels from this list in double brackets like this [[LABEL]], use only this labels: {lbl}.
     REAL SUMMARY:
     ---
     {summary}

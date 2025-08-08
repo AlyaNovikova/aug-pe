@@ -1,7 +1,7 @@
 mlm_prob=0.6
 var_type="mimic_rephrase_tone"
 folder_for_save="bad_prompts_and_zero_shot"
-random_str="exp_07_20"
+random_str="exp_07_25_cos"
 
 feat_ext="Qwen/Qwen3-Embedding-8B"
 # feat_ext="abhinand/MedEmbed-large-v0.1"
@@ -90,8 +90,8 @@ done
 echo load data from ${data_checkpoint_args} ${args}
 
 
-# pip install textstat
-# pip install gensim
+pip install textstat
+pip install gensim
 
 ### run PE
 CUDA_VISIBLE_DEVICES=0,1,2,3 python main.py ${args} ${data_checkpoint_args} \

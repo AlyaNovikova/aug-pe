@@ -272,7 +272,7 @@ def calculate_all_metrics_dict(original_embeddings, synthetic_embeddings, k=3, r
 
     # Compute k-NN precision/recall/F1
     # state = knn_precision_recall_features(ref_features, synt_features, nhood_sizes=[5, 10, 15])
-    max_len = min(min(len(ref_features), len(synt_features)) - 1, 5)
+    max_len = min(min(len(ref_features), len(synt_features)) - 1, 10)
     print('Max neighbors for precision and recall', max_len)
     state = knn_precision_recall_features(ref_features, synt_features, nhood_sizes=[max_len])
     print("METRICS", "precision_recall1--", state["precision"], state["recall"])
@@ -433,7 +433,7 @@ def initialize_umap(real_features, reducer_path="umap_reducer.pkl", embedding_pa
     else:
         print("Fitting new UMAP reducer...")
         real_features = normalize(real_features)
-        reducer = umap.UMAP(n_components=n_components, n_neighbors=15, min_dist=0.1, random_state=42)
+        reducer = umap.UMAP(metric='cosine', n_components=n_components, n_neighbors=10, min_dist=0.1, random_state=42)
         reducer.fit(real_features)
         real_reduced = reducer.transform(real_features)
 
@@ -664,7 +664,8 @@ class DistanceBlock():
 
     def pairwise_distances(self, U, V):
         """Evaluate pairwise distances between two batches of feature vectors."""
-        output = pairwise_distances(U, V, n_jobs=24)
+        # output = pairwise_distances(U, V, n_jobs=24)
+        output = pairwise_distances(U, V, metric='cosine', n_jobs=24)
         return output
 
 

@@ -198,7 +198,7 @@ class HFAPI(API):
 
         return parser
     
-    def generate_prompts(self, num_prompts: int = 15):
+    def generate_prompts(self, num_prompts: int = 15, is_diversity=False):
         prompts = []
         
         try:
@@ -222,8 +222,11 @@ class HFAPI(API):
             else:
                 target_len = max(1, round(np.random.normal(self.length_mean, self.length_std)))
             target_len = min(target_len, self.length_max)
-
-            if self.few_shot == "Yes":
+            
+            if is_diversity:
+                template = random.choice(INSTRUCTION_TEMPLATES)
+                prompt = template(doc_type, specialty, style, labels_str, target_len)
+            elif self.few_shot == "Yes":
                 print("___________ Few shot prompting")
                 template = random.choice(INSTRUCTION_TEMPLATES_WITH_EXAMPLES)
                 prompt = template(doc_type, specialty, style, labels_str, target_len, FEW_SHOT_EXAMPLES)
@@ -244,7 +247,7 @@ class HFAPI(API):
         
         return prompts
 
-    def text_random_sampling(self, num_samples, prompt_counter=None, lens_dict=None):
+    def text_random_sampling(self, num_samples, prompt_counter=None, lens_dict=None, is_diversity=False):
         # print("\n\n!!!!!!!!!!!!", "text_random_sampling hfapi", num_samples, "\n\n!!!!!!!!!!!!")
         ratio_generation_training = num_samples / sum(prompt_counter.values())
 
@@ -294,7 +297,7 @@ class HFAPI(API):
                     # Generate multiple different prompts for MIMIC
                     # num_prompts_to_generate = max(1, min(num_seq_to_generate, 10))
                     num_prompts_to_generate = num_seq_to_generate
-                    generated_prompts = self.generate_prompts(num_prompts=num_prompts_to_generate)
+                    generated_prompts = self.generate_prompts(num_prompts=num_prompts_to_generate, is_diversity=is_diversity)
                     
                     sequences_per_prompt = max(1, num_seq_to_generate // num_prompts_to_generate)
                     remaining_sequences = num_seq_to_generate % num_prompts_to_generate

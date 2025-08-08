@@ -26,6 +26,7 @@ def dp_nn_histogram(public_features, private_features, noise_multiplier,
     elif mode == 'IP':
         metric = lambda u, v: -np.dot(u, v)  # Using negative since we'll find min instead of max
     elif mode == 'cos_sim':
+        print("______mode dp_nn_histogram cos_sim")
         # Normalize vectors for cosine similarity
         public_features = public_features / np.linalg.norm(public_features, axis=1, keepdims=True)
         private_features = private_features / np.linalg.norm(private_features, axis=1, keepdims=True)

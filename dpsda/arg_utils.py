@@ -125,7 +125,7 @@ def parse_args():
     parser.add_argument(
         '--nn_mode',
         type=str,
-        default='L2',
+        default='cos_sim',
         choices=['L2', 'IP', 'cos_sim'],
         help='Which distance metric to use in DP NN histogram')
 

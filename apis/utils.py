@@ -139,7 +139,7 @@ DISCHARGE_REWRITE_PROMPTS = [
     But keep the PHI structure: all PHI (protected and personal information) and sensitive data should be in double brackets like [[LABEL]]. 
     You may reword clinical content within sections:\n{text}""",
     
-    """Based on this radiology discharge letter, create a new radiology discharge letter for a new patient with a different diagnosis like . 
+    """Based on this radiology discharge letter, create a new radiology discharge letter for a new patient with a different diagnosis {style} . 
     Maintain the exact original structure, and sections. 
     But keep the PHI structure: all PHI (protected and personal information) and sensitive data should be in double brackets like [[LABEL]]. Letter:\n{text}""",
 ]
